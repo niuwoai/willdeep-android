@@ -7,7 +7,7 @@ The application ID is `com.willdeep.android`; the minimum OS is Android 13 (API 
 
 Use JDK 21 and the Android SDK referenced by `local.properties` or `ANDROID_HOME`.
 The old JBR 17.0.9 can crash in the ARM64 JIT compiler during lint; JDK 21 is the release build runtime.
-Run `ruby scripts/release_android.rb`. The script runs Release unit tests, lint and
+Run `ruby scripts/release_android.rb`. Stable and `-rcN` semantic versions are accepted; rc versions must be marked prerelease on GitHub. The script runs Release unit tests, lint and
 the Release build, then aligns, signs and verifies the APK. Outputs are in
 `build/public-release/<version>/`: APK, SHA256SUMS, report.json and report.md.
 Review lint diagnostics and release reports before publishing.
@@ -27,7 +27,7 @@ again. Future stable APKs can update the stable installation normally.
 
 Update `versionName`, increment `versionCode`, and update CHANGELOG and product overview.
 Commit the tested release branch, integrate into main while preserving commits,
-and tag `v<version>`. Create a non-prerelease GitHub Release with the APK,
+and tag `v<version>`. Create a GitHub Release (prerelease for rc versions) with the APK,
 SHA256SUMS and reports. Download the public APK again and verify its checksum,
 package metadata and signature against the local artifact.
 

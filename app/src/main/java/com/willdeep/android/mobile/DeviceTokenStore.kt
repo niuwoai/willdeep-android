@@ -17,7 +17,10 @@ data class StoredGatewayCredential(
     val protocolVersion: String,
     val relayRoom: String? = null,
     val lastDesktopResponseAtEpochMillis: Long = 0L,
+    val alias: String = "",
+    val computerPlatform: String = "",
 ) {
+    val displayName: String get() = alias.ifBlank { desktopName }
     val id: String
         get() = stableGatewayCredentialId(relayRoom, baseUrl)
 
@@ -63,11 +66,7 @@ class DeviceTokenStore(context: Context) {
     fun save(credential: StoredGatewayCredential) {
         val credentials = loadAll()
         val existing = credentials.firstOrNull { it.id == credential.id }
-        val normalized = if (credential.lastDesktopResponseAtEpochMillis == 0L && existing != null) {
-            credential.copy(lastDesktopResponseAtEpochMillis = existing.lastDesktopResponseAtEpochMillis)
-        } else {
-            credential
-        }
+        val normalized = credential.preservingLocalIdentity(existing)
         val updated = listOf(normalized) + credentials.filterNot { it.id == normalized.id }
         preferences.edit()
             .putString(KEY_CREDENTIALS_JSON, encodeStoredGatewayCredentials(updated))
@@ -85,6 +84,18 @@ class DeviceTokenStore(context: Context) {
         val credential = loadAll().firstOrNull { it.id == credentialId } ?: return null
         preferences.edit().putString(KEY_SELECTED_CREDENTIAL_ID, credential.id).apply()
         return credential
+    }
+
+    fun updateIdentity(credentialId: String, alias: String, platform: String) {
+        val updated = loadAll().map { credential ->
+            if (credential.id == credentialId) credential.copy(
+                alias = alias.trim().take(MAX_COMPUTER_ALIAS_LENGTH),
+                computerPlatform = platform.takeIf { it in COMPUTER_PLATFORMS }.orEmpty(),
+            ) else credential
+        }
+        preferences.edit()
+            .putString(KEY_CREDENTIALS_JSON, encodeStoredGatewayCredentials(updated))
+            .apply()
     }
 
     fun remove(credentialId: String): StoredGatewayCredential? {
@@ -166,6 +177,8 @@ internal fun encodeStoredGatewayCredentials(credentials: List<StoredGatewayCrede
                     .put("fallback_base_urls", JSONArray(credential.fallbackBaseUrls))
                     .put("device_token", credential.deviceToken)
                     .put("desktop_name", credential.desktopName)
+                    .put("alias", credential.alias)
+                    .put("computer_platform", credential.computerPlatform)
                     .put("protocol_version", credential.protocolVersion)
                     .put("relay_room", credential.relayRoom.orEmpty())
                     .put("last_desktop_response_at", credential.lastDesktopResponseAtEpochMillis)
@@ -191,6 +204,9 @@ internal fun decodeStoredGatewayCredentials(raw: String): List<StoredGatewayCred
                         ),
                         deviceToken = deviceToken,
                         desktopName = json.optString("desktop_name", "WillDeep Mac"),
+                        alias = json.optString("alias"),
+                        computerPlatform = json.optString("computer_platform")
+                            .takeIf { it in COMPUTER_PLATFORMS }.orEmpty(),
                         protocolVersion = json.optString(
                             "protocol_version",
                             MOBILE_GATEWAY_PROTOCOL_VERSION,

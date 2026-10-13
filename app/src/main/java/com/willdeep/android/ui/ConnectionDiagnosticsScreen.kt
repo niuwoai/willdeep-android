@@ -130,7 +130,7 @@ fun ConnectionDiagnosticsScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    DiagnosticComputerIcon(healthy = responseHealthy)
+                    DiagnosticComputerIcon(healthy = responseHealthy, platform = selectedMac?.computerPlatform.orEmpty())
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             selectedMac?.name ?: state.desktopName,
@@ -257,8 +257,14 @@ fun ConnectionDiagnosticsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            DiagnosticComputerIcon(healthy = mac.id == state.selectedMacId && responseHealthy)
-                            Text(mac.name, modifier = Modifier.weight(1f))
+                            DiagnosticComputerIcon(healthy = mac.id == state.selectedMacId && responseHealthy, platform = mac.computerPlatform)
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(mac.name)
+                                Text(
+                                    remoteComputerIdentityText(mac),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
                             if (mac.id == state.selectedMacId) {
                                 Text(
                                     stringResource(R.string.remote_mac_selected_mark),
@@ -397,7 +403,7 @@ private fun FlowNode(label: String, healthy: Boolean) {
 }
 
 @Composable
-private fun DiagnosticComputerIcon(healthy: Boolean) {
+private fun DiagnosticComputerIcon(healthy: Boolean, platform: String = "") {
     val color = if (healthy) Color(0xFF2F9E44) else MaterialTheme.colorScheme.outline
     Box(
         modifier = Modifier
@@ -406,7 +412,7 @@ private fun DiagnosticComputerIcon(healthy: Boolean) {
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            painter = painterResource(R.drawable.ic_computer),
+            painter = painterResource(remoteComputerIcon(platform)),
             contentDescription = null,
             tint = color,
             modifier = Modifier.size(21.dp),

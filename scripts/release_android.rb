@@ -5,6 +5,7 @@ require "digest"
 require "fileutils"
 require "json"
 require "open3"
+require "rexml/document"
 require "securerandom"
 
 ROOT = File.expand_path("..", __dir__)
@@ -37,7 +38,7 @@ raise "Missing release key; initialize once with --initialize-key" unless File.f
 gradle = File.read("app/build.gradle.kts")
 version = gradle[/versionName = "([^"]+)"/, 1]
 code = gradle[/versionCode = (\d+)/, 1].to_i
-raise "Invalid stable version" unless version&.match?(/\A\d+\.\d+\.\d+\z/) && code.positive?
+raise "Invalid semantic version" unless version&.match?(/\A\d+\.\d+\.\d+(?:-rc[1-9]\d*)?\z/) && code.positive?
 sdk = ENV["ANDROID_HOME"] || File.read("local.properties")[/^sdk.dir=(.+)$/, 1]
 raise "Android SDK not configured" unless sdk && File.directory?(sdk)
 build_tools = Dir.glob(File.join(sdk, "build-tools", "*")).select { |path| File.file?(File.join(path, "apksigner")) }
@@ -47,7 +48,7 @@ output_dir = File.join(ROOT, "build", "public-release", version)
 FileUtils.mkdir_p(output_dir)
 
 puts "Testing, linting and building #{version}..."
-build_command = ["./gradlew", "testReleaseUnitTest", "lintRelease", "assembleRelease", "--console=plain"]
+build_command = ["./gradlew", "testReleaseUnitTest", "lintRelease", "assembleRelease", "--console=plain", "-Pkotlin.incremental=false"]
 build_command << "--offline" if ARGV.include?("--offline")
 build_output = run!(*build_command)
 File.write(File.join(output_dir, "build.log"), build_output)
@@ -63,12 +64,15 @@ metadata = run!(File.join(tools_dir, "aapt"), "dump", "badging", apk)
 raise "Unexpected APK metadata" unless metadata.include?("package: name='com.willdeep.android' versionCode='#{code}' versionName='#{version}'")
 raise "Release APK is debuggable" if metadata.include?("application-debuggable")
 raise "Unexpected minimum SDK" unless metadata.include?("sdkVersion:'33'")
-tests = Dir.glob("app/build/test-results/testReleaseUnitTest/TEST-*.xml").map { |path| File.read(path) }
-test_count = tests.sum { |xml| xml[/<testsuite\b[^>]*\btests="(\d+)"/, 1].to_i }
+tests = Dir.glob("app/build/test-results/testReleaseUnitTest/TEST-*.xml").map { |path| REXML::Document.new(File.read(path)).root }
+test_count = tests.sum { |suite| suite.attributes['tests'].to_i }
+test_skipped = tests.sum { |suite| suite.attributes['skipped'].to_i }
+raise "Unit test failures remain" unless tests.all? { |suite| suite.attributes['failures'].to_i.zero? && suite.attributes['errors'].to_i.zero? }
 raise "No unit tests executed" unless test_count.positive?
 sha = Digest::SHA256.file(apk).hexdigest
 report = { version: version, version_code: code, application_id: "com.willdeep.android",
-           minimum_android: 13, unit_tests: test_count, lint: "passed", signature_verified: true,
+           minimum_android: 13, unit_tests: test_count, unit_tests_skipped: test_skipped,
+           prerelease: version.include?('-'), lint: "passed", signature_verified: true,
            certificate_sha256: signature[/Signer #1 certificate SHA-256 digest: (\h+)/, 1],
            apk: apk_name, sha256: sha, bytes: File.size(apk) }
 lint_report = File.read("app/build/reports/lint-results-release.xml")

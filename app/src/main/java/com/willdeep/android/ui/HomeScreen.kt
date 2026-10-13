@@ -112,6 +112,7 @@ fun HomeScreen(
     onWorkspaceSelected: (String) -> Unit,
     onOpenAttention: () -> Unit = {},
     onOpenDiagnostics: () -> Unit = {},
+    onRemoteComputerIdentityChange: (String, String, String) -> Unit = { _, _, _ -> },
 ) {
     val isPaired = state.isPaired
     val isConnected = state.status == ConnectionStatus.Connected
@@ -171,6 +172,7 @@ fun HomeScreen(
                     onDisconnect = onDisconnect,
                     onForget = onForget,
                     onRemoteMacSelected = onRemoteMacSelected,
+                    onRemoteComputerIdentityChange = onRemoteComputerIdentityChange,
                     onToolDecision = onToolDecision,
                     onToolAnswerChange = onToolAnswerChange,
                     onToolConfirmationChange = onToolConfirmationChange,
@@ -494,6 +496,7 @@ private fun PairedBody(
     onDisconnect: () -> Unit,
     onForget: () -> Unit,
     onRemoteMacSelected: (String) -> Unit,
+    onRemoteComputerIdentityChange: (String, String, String) -> Unit,
     onToolDecision: (PendingToolApproval, Boolean) -> Unit,
     onToolAnswerChange: (String, String) -> Unit,
     onToolConfirmationChange: (String, String) -> Unit,
@@ -658,6 +661,7 @@ private fun PairedBody(
     if (remoteMacPickerVisible) {
         RemoteMacPickerSheet(
             state = state,
+            onIdentityChange = onRemoteComputerIdentityChange,
             onDismiss = { remoteMacPickerVisible = false },
             onSelect = { id ->
                 remoteMacPickerVisible = false
@@ -719,7 +723,7 @@ private fun RemoteMacSelector(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_computer),
+                    painter = painterResource(remoteComputerIcon(selectedMac?.computerPlatform.orEmpty())),
                     contentDescription = null,
                     tint = statusColor,
                     modifier = Modifier.size(21.dp),
@@ -740,6 +744,15 @@ private fun RemoteMacSelector(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                if (selectedMac != null) {
+                    Text(
+                        text = remoteComputerIdentityText(selectedMac),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 Text(
                     text = selectedMacStatusText(state),
                     style = MaterialTheme.typography.bodySmall,
@@ -892,6 +905,7 @@ private fun MacReconnectNotice(
 @Composable
 private fun RemoteMacPickerSheet(
     state: MobileGatewayUiState,
+    onIdentityChange: (String, String, String) -> Unit,
     onDismiss: () -> Unit,
     onSelect: (String) -> Unit,
     onAddComputer: () -> Unit,
@@ -899,6 +913,18 @@ private fun RemoteMacPickerSheet(
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
 ) {
+    var editingComputerId by rememberSaveable { mutableStateOf<String?>(null) }
+    val editingComputer = state.pairedMacs.firstOrNull { it.id == editingComputerId }
+    if (editingComputer != null) {
+        RemoteComputerIdentityDialog(
+            computer = editingComputer,
+            onDismiss = { editingComputerId = null },
+            onSave = { alias, platform ->
+                onIdentityChange(editingComputer.id, alias, platform)
+                editingComputerId = null
+            },
+        )
+    }
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
@@ -926,7 +952,7 @@ private fun RemoteMacPickerSheet(
                         horizontalArrangement = Arrangement.spacedBy(11.dp),
                     ) {
                         Icon(
-                            painter = painterResource(R.drawable.ic_computer),
+                            painter = painterResource(remoteComputerIcon(mac.computerPlatform)),
                             contentDescription = null,
                             tint = if (selected && state.status == ConnectionStatus.Connected) {
                                 Color(0xFF2F9E44)
@@ -944,6 +970,11 @@ private fun RemoteMacPickerSheet(
                                 overflow = TextOverflow.Ellipsis,
                             )
                             Text(
+                                text = remoteComputerIdentityText(mac),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.secondary,
+                            )
+                            Text(
                                 text = if (selected) {
                                     selectedMacStatusText(state)
                                 } else {
@@ -959,6 +990,9 @@ private fun RemoteMacPickerSheet(
                                 style = MaterialTheme.typography.labelMedium,
                                 color = Color(0xFF2F9E44),
                             )
+                        }
+                        TextButton(onClick = { editingComputerId = mac.id }) {
+                            Text(stringResource(R.string.remote_computer_edit))
                         }
                     }
                 }

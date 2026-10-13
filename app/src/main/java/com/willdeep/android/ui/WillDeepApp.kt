@@ -3,6 +3,8 @@
 package com.willdeep.android.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -19,6 +21,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
@@ -160,6 +163,7 @@ fun WillDeepApp(
             onDisconnect = viewModel::disconnect,
             onForget = viewModel::forgetToken,
             onRemoteMacSelected = viewModel::selectRemoteMac,
+            onRemoteComputerIdentityChange = viewModel::updateRemoteComputerIdentity,
             onToolDecision = viewModel::decideTool,
             onToolAnswerChange = viewModel::updateToolAnswer,
             onToolConfirmationChange = viewModel::updateToolConfirmation,
@@ -306,29 +310,36 @@ internal fun ConversationMessageRow(message: GatewayMessage) {
     }
     val containerColor = when (message.role) {
         "user" -> MaterialTheme.colorScheme.primaryContainer
-        "assistant" -> MaterialTheme.colorScheme.surfaceVariant
+        "assistant" -> MaterialTheme.colorScheme.surface
         "system" -> MaterialTheme.colorScheme.tertiaryContainer
         else -> MaterialTheme.colorScheme.surfaceVariant
     }
     Surface(
         color = containerColor,
-        shape = MaterialTheme.shapes.small,
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = roleLabel,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            if (message.isStreaming) {
-                AssistChip(
-                    onClick = {},
-                    label = { Text(stringResource(R.string.message_streaming)) },
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            ) {
+                Text(roleLabel, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                if (message.isStreaming) {
+                    Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(8.dp)) {
+                        Text(
+                            stringResource(R.string.message_streaming),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                    }
+                }
             }
             if (message.imageUrls.isNotEmpty()) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -346,7 +357,7 @@ internal fun ConversationMessageRow(message: GatewayMessage) {
             if (message.content.isNotBlank()) {
                 MarkdownText(
                     text = message.content,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyLarge,
                 )
             } else if (message.imageUrls.isEmpty()) {
                 val placeholder = when {
@@ -569,19 +580,25 @@ internal fun ApprovalCard(
     onToolConfirmationChange: (String, String) -> Unit,
     onPatchDecision: (PatchProposal, Boolean) -> Unit,
     showSectionTitle: Boolean = true,
+    showHeading: Boolean = true,
 ) {
     if (state.pendingTools.isEmpty() && state.patchProposals.isEmpty()) {
         return
     }
 
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp),
+    ) {
         Column(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (showSectionTitle) {
+            if (showHeading && showSectionTitle) {
                 SectionTitle(stringResource(R.string.section_approvals))
-            } else {
+            } else if (showHeading) {
                 Text(
                     text = stringResource(R.string.composer_review_title),
                     style = MaterialTheme.typography.labelLarge,
@@ -622,26 +639,26 @@ private fun ToolApprovalRow(
     onReject: () -> Unit,
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(14.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
-            modifier = Modifier.padding(10.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
                 text = stringResource(R.string.tool_approval_title, approval.title),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             if (approval.summary.isNotBlank()) {
                 Text(
                     text = approval.summary,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 2,
+                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    maxLines = 4,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -839,16 +856,36 @@ private fun DecisionButtons(
             enabled = approveEnabled,
             modifier = Modifier
                 .weight(1f)
-                .height(52.dp),
+                .height(48.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.onSurface,
+                contentColor = MaterialTheme.colorScheme.surface,
+            ),
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
         ) {
+            Icon(
+                painter = androidx.compose.ui.res.painterResource(R.drawable.ic_approval),
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.approve_button))
         }
         OutlinedButton(
             onClick = onReject,
-            modifier = Modifier.height(42.dp),
+            modifier = Modifier.weight(0.7f).height(48.dp),
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
         ) {
+            Icon(
+                painter = androidx.compose.ui.res.painterResource(R.drawable.ic_close),
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(Modifier.width(6.dp))
             Text(stringResource(R.string.reject_button))
         }
     }

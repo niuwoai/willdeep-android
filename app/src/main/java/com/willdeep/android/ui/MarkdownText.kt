@@ -52,7 +52,7 @@ internal fun MarkdownText(
     val blocks = remember(text) { parseMarkdownBlocks(text) }
     val codeBg = MaterialTheme.colorScheme.surfaceVariant
     val linkColor = MaterialTheme.colorScheme.primary
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(14.dp)) {
         blocks.forEach { block ->
             when (block) {
                 is MdBlock.CodeBlock -> CodeBlockView(block.lang, block.code)
@@ -67,13 +67,14 @@ internal fun MarkdownText(
                     },
                     fontWeight = FontWeight.Bold,
                     color = color,
+                    modifier = Modifier.padding(top = 6.dp),
                 )
-                is MdBlock.BulletList -> Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                is MdBlock.BulletList -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     block.items.forEach { item ->
                         MarkdownListItem("•", item, codeBg, linkColor, style, color)
                     }
                 }
-                is MdBlock.OrderedList -> Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                is MdBlock.OrderedList -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     block.items.forEachIndexed { index, item ->
                         MarkdownListItem(
                             marker = "${block.start + index}.",
@@ -92,7 +93,7 @@ internal fun MarkdownText(
                 ) {
                     Text(
                         text = parseInline(block.text, codeBg, linkColor),
-                        style = style.copy(fontStyle = FontStyle.Italic),
+                        style = style,
                         color = color,
                         modifier = Modifier.padding(10.dp),
                     )
@@ -143,11 +144,12 @@ private fun MarkdownImage(alt: String, url: String) {
 @Composable
 private fun CodeBlockView(lang: String?, code: String) {
     Surface(
-        color = MaterialTheme.colorScheme.surface,
+        color = MaterialTheme.colorScheme.surfaceContainer,
         shape = MaterialTheme.shapes.small,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (!lang.isNullOrBlank()) {
                 Text(
                     text = lang,
@@ -157,8 +159,10 @@ private fun CodeBlockView(lang: String?, code: String) {
             }
             Text(
                 text = code,
-                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
                 color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                softWrap = false,
             )
         }
     }

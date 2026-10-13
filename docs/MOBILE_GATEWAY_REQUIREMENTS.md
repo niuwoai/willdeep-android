@@ -257,9 +257,9 @@ willdeep-rs hosts its relay in one of two places, depending on version:
 | `session.select` | `ack` | `ack`, then a fresh `state.snapshot` | `state.snapshot` | — |
 | `session.create` | `session.upsert` | `session.upsert`; `workspace_path` must already be registered in the Runtime | unsupported | command marked failed |
 | `workspace.list` | `workspace.list` | `workspace.list` (Runtime workspace registry with session counts) | `workspace.list` (current workspace only) | picker shows "not supported" |
-| `capabilities.get` | `capabilities.updated` | `capabilities.updated` (the selected session's profile/model, read-only) | `capabilities.updated` (active profile/model only) | silent |
+| `capabilities.get` | `capabilities.updated` | `capabilities.updated` (full configured providers, remote models, allowed skills, approved plugins and actual session selections) | `capabilities.updated` (active profile/model only) | silent |
 | `push.register` | `ack` | unsupported | unsupported | silent |
-| `message.send` | `ack` | `ack` + `message.append` user echo + `state.snapshot`; text and images; `approval_mode` / `provider_id` / `model` / `skills` / `experts` / `plugins` are ignored | `ack` (text only; images/model overrides ignored) | — |
+| `message.send` | `ack` | `ack` + `message.append` user echo + `state.snapshot`; text and images; run context is validated and applied before submission; unsupported experts are explicitly rejected | `ack` (text only; images/model overrides ignored) | — |
 | `turn.stop` | `ack` | `ack` | unsupported | command marked failed |
 | `tool.decide` | `ack` | `ack` + `tool.updated`; approvals resolve as allow once / deny only (never always-allow); `ask_user` needs a non-empty `answer` to approve | unsupported | command marked failed |
 | `queue.update` | `ack` | `action: add` → `ack` (queued as the session's next Runtime turn); `remove` / `clear` / `send_now` unsupported | unsupported | command marked failed |
@@ -337,3 +337,7 @@ Android treats any `Unsupported mobile command: <type>` (and the pre-rc9 CLI wor
 - `./gradlew :app:testDebugUnitTest --tests com.willdeep.android.mobile.MobileGatewayClientIntegrationTest` verifies the real Android gateway client against a JVM local mock gateway.
 - `./gradlew :app:assembleDebugAndroidTest` verifies the instrumented Compose pairing, WebSocket snapshot, message streaming, tool approval, and patch approval smoke test compiles for device execution.
 - Version `1.25.0-rc1` is visible in Gradle metadata and sent through gateway request headers.
+
+## Run-context alignment (2026-10-13)
+
+New hosts support `session.configure` with a `session_id` and a partial payload. Success returns `ack`; `capabilities.updated` reads back actual selections. Canonical approval modes are `strict`, `smart`, `workspace-write`, `full-access`. `supports_configuration` distinguishes immediate updates from legacy message-only context. See `MOBILE_RUN_CONTEXT.md`.

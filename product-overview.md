@@ -1,6 +1,6 @@
 # Product Overview
 
-> Last updated: 2026-10-11 | Current version: v1.25.0
+> Last updated: 2026-10-13 | Current version: v1.26.0-rc4
 
 ## Public Android download
 
@@ -13,6 +13,13 @@
 WillDeep Android is the native mobile companion for the WillDeep Mac desktop app. The phone connects to the Mac over the local network, displays Agent session state, and sends control commands. The Mac remains responsible for all Agent execution and safety decisions.
 
 ## Core Features
+
+- Identify paired computers with Windows, Linux penguin, or macOS Apple icons matching their saved system labels; unspecified systems retain the generic computer icon across home, picker, and diagnostics.
+- Keep conversation text visible while typing by collapsing approvals and queued-message controls into a compact entry that dismisses the keyboard to restore the review dock.
+
+- Read Agent responses at 17sp with 27sp line height, distinct Markdown headings and spaced lists, and horizontally scrollable code blocks. Conversation tabs use a compact segmented control; approvals use consistent primary/secondary buttons and neutral surfaces. The composer keeps its familiar toolbar while reducing empty input space.
+
+- Edit each paired computer's local alias and system label (macOS, Linux, Windows, or unspecified) from the computer picker, even while offline. Labels persist across reconnection and rescanning the same pairing; the original name and a stable short identifier remain visible. New CLI QR codes report the system through an explicit name prefix; legacy QR codes require a manual system label.
 
 - Pair with the Mac Mobile Gateway by scanning a short H5 QR URL such as `?r=<room>&t=<token>`, scanning the legacy JSON payload, or receiving a matching `willdeep://mobile/pair?...` deep link from the H5 page.
 - Preserve LAN-first pairing while accepting Tailscale fallback endpoints from `fallback_base_urls` or `base_url#tailscale=100.x.x.x` QR hints.
@@ -32,7 +39,7 @@ WillDeep Android is the native mobile companion for the WillDeep Mac desktop app
 - Switch between all sessions and a single project/workspace from the compact scope control above the filters.
 - Keep the mobile app portrait-only and lead the home hierarchy with remote Mac status instead of a decorative page title.
 - Surface the Ask WillDeep composer and queued requests directly after pairing so sending Mac Agent tasks is the primary mobile flow.
-- Use the redesigned mobile composer icon toolbar, plus-style attachment entry, top-aligned multi-line input, Mac-aligned send/stop action button, and bottom-sheet pickers to choose approval mode, Mac-reported provider, model, skills, experts, and plugins before sending a request without crowding the text input.
+- Use the mobile composer icon toolbar, attachment entry, top-aligned input, and send button. While the Agent responds, sending adds text and images to the current session queue without stopping the current turn; empty drafts disable the button. Bottom-sheet pickers select approval mode, provider, model, skills, experts, and plugins.
 - Render pending tool and patch confirmations directly inside their owning home-session card as well as in the session composer, while leaving changed-file details on the desktop.
 - Collect approvals, typed questions, patch reviews, and failed phone commands in a dedicated attention center without removing inline approval controls from their owning home session.
 - Provide connection diagnostics for the selected remote Mac, including truthful Mac App response state, measured gateway latency, LAN/Tailscale route classification, multi-Mac switching, the five-second/twenty-second recovery policy, and redacted sharing.
@@ -130,3 +137,7 @@ The JVM client integration test covers the real `MobileGatewayClient` against a 
 - Live Mac gateway testing still requires an attached Android device plus a fresh two-minute Mac pairing payload at run time.
 - Project grouping falls back to workspace grouping until the connected Mac gateway includes `project_id` and `project_name` in session/workspace payloads.
 - Additional locales beyond English and Simplified Chinese are pending.
+
+## 三端运行配置（1.26.0-rc4）
+
+手机通过 `session.configure` 修改选中会话的审批模式、供应商、模型和上下文选择，宿主校验后回传实际状态。四档为 strict、smart、workspace-write、full-access；只读工作区不开放审批档位选择。详细协议和验收边界见 `docs/MOBILE_RUN_CONTEXT.md`。

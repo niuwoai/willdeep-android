@@ -1,0 +1,7 @@
+allprojects { project ->
+    project.plugins.withId("com.android.application") {
+        project.extensions.getByName("androidComponents").finalizeDsl { android ->
+            android.defaultConfig.applicationId = "com.willdeep.android.contexttest"
+        }
+    }
+}

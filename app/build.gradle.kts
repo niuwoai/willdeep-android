@@ -33,8 +33,8 @@ android {
         applicationId = "com.willdeep.android"
         minSdk = 33
         targetSdk = 36
-        versionCode = 117
-        versionName = "1.25.0"
+        versionCode = 122
+        versionName = "1.26.0-rc4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         val umengAppKey = getConfigValue("UMENG_APPKEY")

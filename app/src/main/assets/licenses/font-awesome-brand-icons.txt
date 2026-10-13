@@ -1,0 +1,9 @@
+Windows, Linux, and Apple brand icons
+Font Awesome Free 6, Copyright Fonticons, Inc.
+Source: https://github.com/FortAwesome/Font-Awesome/tree/6.x/svgs/brands
+License: Creative Commons Attribution 4.0 International
+https://creativecommons.org/licenses/by/4.0/
+
+The SVG icons have been converted to Android VectorDrawable format.
+Brand icons are trademarks of their respective owners. Their use represents
+the corresponding operating system and does not imply endorsement.

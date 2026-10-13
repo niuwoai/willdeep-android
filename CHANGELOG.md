@@ -1,5 +1,48 @@
 # Changelog
 
+## [1.26.0-rc4] - 2026-10-13
+
+### Fixed
+- 审批模式与 Mac、Rust 统一为四档，新增完全访问并回显电脑实际配置；保留只读工作区约束。
+- 手机选择供应商、模型、技能、专家和插件时发送独立配置命令，等待电脑校验和回读；切换会话、电脑及打开选择器时刷新目录。
+- 显示模型目录查询失败及旧宿主兼容状态，避免把本地选择误报为电脑已生效。
+- 发布脚本支持 rc 语义版本，继续使用原签名密钥，并记录单元测试跳过项。
+
+## [1.26.0-rc3] - 2026-10-13
+
+### Changed
+- Show Windows, Linux penguin, and macOS Apple icons according to each computer's saved system label on the home screen, computer picker, and connection diagnostics; retain the generic computer icon for unspecified systems.
+- Use Font Awesome Free brand vectors with embedded CC BY 4.0 attribution.
+
+### Fixed
+- Collapse the approval and queue dock while the keyboard is open so it no longer pushes conversation text out of view; tapping the compact entry hides the keyboard and restores review controls.
+
+## [1.26.0-rc2] - 2026-10-12
+
+### Fixed
+
+- 会话正文从 12sp 提升为 17sp、27sp 行高，增大段落与列表间距；代码块使用独立底色和横向滚动，避免长命令折行难读。
+- 修正自定义字体未应用的问题，统一暖白与中性灰色阶，移除默认紫色控件底色。
+- 会话页签改为分段导航，审批按钮统一高度并明确主次；输入框缩小空白占用，继续保留运行中排队发送。
+
+## [1.26.0-rc1] - 2026-10-12
+
+### Fixed
+
+- AI 运行时输入框按钮保持发送图标，点击加入消息队列，不再停止当前运行；没有新内容时禁用按钮。
+
+## [1.26.0] - 2026-10-12
+
+### Added
+
+- 为每台已配对电脑保存手机端别名及 macOS / Linux / Windows 系统标记，无需重新扫码，离线电脑也可编辑。
+- 电脑选择器与诊断列表显示系统标记、原始名称及稳定短编号，区分同名的 WillDeep CLI。
+- 自动识别新版 CLI 二维码中的明确系统前缀；旧二维码不猜测系统类型，可手动标记。
+
+### Fixed
+
+- 电脑连接与响应状态使用通用文案，避免将 Linux CLI 错标为 Mac；重新连接、扫码更新同一配对时保留别名及系统标记。
+
 ## [1.25.0] - 2026-10-11
 
 ### Changed

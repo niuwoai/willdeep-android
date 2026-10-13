@@ -395,6 +395,10 @@ data class GatewayCapabilities(
     val plugins: List<GatewayCapabilityOption>,
     val activeProviderId: String?,
     val activeModelId: String?,
+    val activeApprovalMode: String? = null,
+    val approvalModes: List<String>? = null,
+    val supportsConfiguration: Boolean = false,
+    val modelsStatus: String? = null,
 )
 
 data class GatewayEnvelope(
@@ -447,7 +451,7 @@ sealed interface GatewayEvent {
     data class JobUpdated(val job: GatewayJob) : GatewayEvent
     data class FileLoaded(val commandId: String?, val file: GatewayFile) : GatewayEvent
     data class WorkspacesUpdated(val workspaces: List<GatewayWorkspace>) : GatewayEvent
-    data class CapabilitiesUpdated(val capabilities: GatewayCapabilities) : GatewayEvent
+    data class CapabilitiesUpdated(val capabilities: GatewayCapabilities, val sessionId: String? = null) : GatewayEvent
     data class Raw(val type: String) : GatewayEvent
 }
 
@@ -508,7 +512,7 @@ fun parseGatewayEvent(raw: String): GatewayEvent {
         "patch.upsert" -> payload.toPatchEvent(sessionId)
         "job.updated" -> GatewayEvent.JobUpdated(payload.toJob(sessionId))
         "workspace.list" -> GatewayEvent.WorkspacesUpdated(payload.optJSONArray("workspaces").toWorkspaces())
-        "capabilities.updated" -> GatewayEvent.CapabilitiesUpdated(payload.toCapabilities())
+        "capabilities.updated" -> GatewayEvent.CapabilitiesUpdated(payload.toCapabilities(), sessionId)
         else -> GatewayEvent.Raw(type)
     }
 }
@@ -941,6 +945,12 @@ private fun JSONObject.toCapabilities(): GatewayCapabilities {
         plugins = optJSONArray("plugins").toCapabilityOptions(),
         activeProviderId = firstString("active_provider_id", "activeProviderId").ifBlank { null },
         activeModelId = firstString("active_model_id", "activeModelId").ifBlank { null },
+        activeApprovalMode = firstString("active_approval_mode").ifBlank { null },
+        approvalModes = optJSONArray("approval_modes")?.let { array ->
+            (0 until array.length()).map { array.getString(it) }
+        },
+        supportsConfiguration = optBoolean("supports_configuration", false),
+        modelsStatus = firstString("models_status").ifBlank { null },
     )
 }
 

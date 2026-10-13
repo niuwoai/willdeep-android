@@ -35,6 +35,7 @@ import com.willdeep.android.mobile.PatchProposal
 import com.willdeep.android.mobile.PairingPayload
 import com.willdeep.android.mobile.PendingToolApproval
 import com.willdeep.android.mobile.ReconnectPolicy
+import com.willdeep.android.mobile.reportedComputerPlatform
 import com.willdeep.android.mobile.StoredGatewayCredential
 import com.willdeep.android.push.MobilePushManager
 import com.willdeep.android.push.MobilePushTokenStore
@@ -66,6 +67,9 @@ data class RemoteMacSummary(
     val name: String,
     val lastDesktopResponseAtEpochMillis: Long = 0L,
     val isSelected: Boolean = false,
+    val originalName: String = name,
+    val alias: String = "",
+    val computerPlatform: String = "",
 )
 
 data class GatewayLogLine(
@@ -89,6 +93,7 @@ enum class ApprovalMode {
     AskEveryTime,
     SmartApproval,
     WorkspaceWritable,
+    FullAccess,
 }
 
 data class MobileCapabilityOption(
@@ -149,7 +154,14 @@ data class MobileGatewayUiState(
     val commandStatuses: List<MobileCommandStatus> = emptyList(),
     val logLines: List<GatewayLogLine> = emptyList(),
     val attachments: List<ImageAttachment> = emptyList(),
-    val approvalMode: ApprovalMode = ApprovalMode.AskEveryTime,
+    val approvalMode: ApprovalMode = ApprovalMode.SmartApproval,
+    val approvalModeReported: Boolean = false,
+    val availableApprovalModes: List<ApprovalMode> = ApprovalMode.entries,
+    val supportsConfiguration: Boolean = false,
+    val capabilitiesLoaded: Boolean = false,
+    val modelsStatus: String? = null,
+    val isReadOnlyWorkspace: Boolean = false,
+    val pendingSessionSelectionId: String? = null,
     val providerOptions: List<MobileCapabilityOption> = emptyList(),
     val modelOptions: List<MobileCapabilityOption> = emptyList(),
     val skillOptions: List<MobileCapabilityOption> = emptyList(),
@@ -202,7 +214,7 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
                 it.copy(
                     baseUrl = credential.baseUrl,
                     fallbackBaseUrls = credential.fallbackBaseUrls,
-                    desktopName = credential.desktopName,
+                    desktopName = credential.displayName,
                     protocolVersion = credential.protocolVersion,
                     isPaired = true,
                     pairedMacs = credentials.toRemoteMacSummaries(credential.id),
@@ -291,7 +303,7 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
     fun handleAttentionAction(request: MobileAttentionActionRequest) {
         request.sessionId?.let { sessionId ->
             requestedAttentionSessionId = sessionId
-            _state.update { it.copy(selectedSessionId = sessionId) }
+            _state.update { it.clearCapabilities().copy(selectedSessionId = sessionId) }
             if (state.value.status == ConnectionStatus.Connected) {
                 send(GatewayEnvelope(type = "session.select", sessionId = sessionId))
                 requestedAttentionSessionId = null
@@ -324,6 +336,7 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
                         fallbackBaseUrls = emptyList(),
                         deviceToken = payload.relayToken.orEmpty(),
                         desktopName = payload.desktopName,
+                        computerPlatform = reportedComputerPlatform(payload.desktopName),
                         protocolVersion = payload.protocolVersion,
                         relayRoom = payload.relayRoom,
                     )
@@ -338,18 +351,19 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
                         fallbackBaseUrls = payload.fallbackBaseUrls,
                         deviceToken = claim.deviceToken,
                         desktopName = payload.desktopName,
+                        computerPlatform = reportedComputerPlatform(payload.desktopName),
                         protocolVersion = claim.protocolVersion,
                     )
                 }
                 tokenStore.save(credential)
-                credential
+                tokenStore.load() ?: credential
             }.onSuccess { credential ->
                 val credentials = tokenStore.loadAll()
                 _state.update {
                     it.copy(
                         baseUrl = credential.baseUrl,
                         fallbackBaseUrls = credential.fallbackBaseUrls,
-                        desktopName = credential.desktopName,
+                        desktopName = credential.displayName,
                         protocolVersion = credential.protocolVersion,
                         isPaired = true,
                         pairedMacs = credentials.toRemoteMacSummaries(credential.id),
@@ -430,7 +444,7 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
                 errorMessage = null,
                 baseUrl = credential.baseUrl,
                 fallbackBaseUrls = credential.fallbackBaseUrls,
-                desktopName = credential.desktopName,
+                desktopName = credential.displayName,
                 protocolVersion = credential.protocolVersion,
                 isPaired = true,
                 pairedMacs = tokenStore.loadAll().toRemoteMacSummaries(credential.id),
@@ -462,7 +476,7 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
                         errorMessage = null,
                         baseUrl = endpoint,
                         fallbackBaseUrls = credential.fallbackBaseUrls,
-                        desktopName = credential.desktopName,
+                        desktopName = credential.displayName,
                         protocolVersion = credential.protocolVersion,
                         isPaired = true,
                         selectedMacId = credential.id,
@@ -574,6 +588,18 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
         connect()
     }
 
+    fun updateRemoteComputerIdentity(credentialId: String, alias: String, platform: String) {
+        tokenStore.updateIdentity(credentialId, alias, platform)
+        val credentials = tokenStore.loadAll()
+        _state.update { current ->
+            current.copy(
+                pairedMacs = credentials.toRemoteMacSummaries(current.selectedMacId),
+                desktopName = credentials.firstOrNull { it.id == current.selectedMacId }?.displayName
+                    ?: current.desktopName,
+            )
+        }
+    }
+
     fun selectRemoteMac(credentialId: String) {
         if (credentialId == state.value.selectedMacId) return
         val credential = tokenStore.select(credentialId) ?: return
@@ -642,7 +668,7 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun requestCapabilities() {
-        send(GatewayEnvelope(type = "capabilities.get"))
+        send(GatewayEnvelope(type = "capabilities.get", sessionId = state.value.selectedSessionId))
     }
 
     private fun handleUnsupportedCommand(event: GatewayEvent.Error, commandType: String) {
@@ -769,10 +795,10 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
         transportConnectedAtMillis = 0L
         lastPersistedDesktopResponseAtEpochMillis = credential.lastDesktopResponseAtEpochMillis
         _state.update { current ->
-            current.copy(
+            current.clearCapabilities().copy(
                 baseUrl = credential.baseUrl,
                 fallbackBaseUrls = credential.fallbackBaseUrls,
-                desktopName = credential.desktopName,
+                desktopName = credential.displayName,
                 protocolVersion = credential.protocolVersion,
                 isPaired = true,
                 pairedMacs = credentials.toRemoteMacSummaries(credential.id),
@@ -784,6 +810,7 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
                 errorMessage = null,
                 sessions = emptyList(),
                 selectedSessionId = null,
+                pendingSessionSelectionId = null,
                 workspaces = emptyList(),
                 pendingTools = emptyList(),
                 toolAnswers = emptyMap(),
@@ -833,8 +860,9 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun selectSession(sessionId: String) {
-        _state.update { it.copy(selectedSessionId = sessionId) }
+        _state.update { it.clearCapabilities().copy(selectedSessionId = sessionId, pendingSessionSelectionId = sessionId) }
         send(GatewayEnvelope(type = "session.select", sessionId = sessionId))
+        requestCapabilities()
     }
 
     fun addAttachment(uri: Uri) {
@@ -854,7 +882,9 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun updateApprovalMode(mode: ApprovalMode) {
-        _state.update { it.copy(approvalMode = mode) }
+        if (state.value.isReadOnlyWorkspace || mode !in state.value.availableApprovalModes) return
+        _state.update { it.copy(approvalMode = mode, approvalModeReported = true) }
+        configureSession(JSONObject().put("approval_mode", mode.gatewayValue()))
     }
 
     fun selectProvider(providerId: String) {
@@ -865,6 +895,7 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
                 it.copy(selectedProviderId = providerId)
             }
         }
+        configureSession(JSONObject().put("provider_id", providerId))
     }
 
     fun selectModel(modelId: String) {
@@ -875,6 +906,7 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
                 it.copy(selectedModelId = modelId)
             }
         }
+        configureSession(JSONObject().put("model", modelId))
     }
 
     fun toggleSkill(skillId: String) {
@@ -887,6 +919,7 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
             }
             it.copy(selectedSkillIds = next)
         }
+        configureSession(JSONObject().put("skills", JSONArray(state.value.selectedSkillIds.toList())))
     }
 
     fun toggleExpert(expertId: String) {
@@ -899,6 +932,7 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
             }
             it.copy(selectedExpertIds = next)
         }
+        configureSession(JSONObject().put("experts", JSONArray(state.value.selectedExpertIds.toList())))
     }
 
     fun togglePlugin(pluginId: String) {
@@ -911,7 +945,14 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
             }
             it.copy(selectedPluginIds = next)
         }
+        configureSession(JSONObject().put("plugins", JSONArray(state.value.selectedPluginIds.toList())))
     }
+
+private fun configureSession(payload: JSONObject) {
+    val current = state.value
+    if (!current.supportsConfiguration || current.selectedSessionId == null) return
+    send(GatewayEnvelope(type = "session.configure", sessionId = current.selectedSessionId, payload = payload))
+}
 
     fun sendMessage() {
         val current = state.value
@@ -922,7 +963,7 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
         val payload = JSONObject().put("text", text)
         val workspacePath = current.preferredWorkspacePath.trim().takeIf { it.isNotEmpty() }
         workspacePath?.let { payload.put("workspace_path", it) }
-        payload.put("approval_mode", current.approvalMode.gatewayValue())
+        if (current.approvalModeReported) payload.put("approval_mode", if (current.supportsConfiguration) current.approvalMode.gatewayValue() else current.approvalMode.legacyGatewayValue())
         current.selectedProviderId.trim().takeIf { it.isNotEmpty() }?.let { payload.put("provider_id", it) }
         current.selectedModelId.trim().takeIf { it.isNotEmpty() }?.let { payload.put("model", it) }
         if (current.selectedSkillIds.isNotEmpty()) {
@@ -963,19 +1004,12 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
         val activeSession = current.sessions.firstOrNull { it.id == current.selectedSessionId }
         val shouldQueue = activeSession?.isResponding == true && current.selectedSessionId != null
 
-        val envelope = if (shouldQueue) {
-            GatewayEnvelope(
-                type = "queue.update",
-                sessionId = current.selectedSessionId,
-                payload = payload.put("action", "add"),
-            )
-        } else {
-            GatewayEnvelope(
-                type = "message.send",
-                sessionId = current.selectedSessionId.takeIf { workspacePath == null },
-                payload = payload,
-            )
-        }
+        val envelope = composerMessageSubmission(
+            sessionId = current.selectedSessionId,
+            workspacePath = workspacePath,
+            isResponding = activeSession?.isResponding == true,
+            payload = payload,
+        )
         val sent = send(envelope)
         if (!sent) return
         val logKind = if (shouldQueue) "mobile" else "mobile"
@@ -991,10 +1025,6 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
                 logLines = it.logLines.append(GatewayLogLine(logKind, logText)),
             )
         }
-    }
-
-    fun stopTurn() {
-        send(GatewayEnvelope(type = "turn.stop", sessionId = state.value.selectedSessionId))
     }
 
     fun queueCurrentMessage() {
@@ -1357,8 +1387,9 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
                 transportConnectedAtMillis = SystemClock.elapsedRealtime()
                 lastDesktopEventAtMillis = 0L
                 _state.update {
-                    it.copy(
+                    it.clearCapabilities().copy(
                         status = ConnectionStatus.AwaitingDesktop,
+                        pendingSessionSelectionId = null,
                         isTransportConnected = true,
                         desktopResponseAgeMillis = 0L,
                         errorMessage = null,
@@ -1414,11 +1445,13 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
                 }
             }
             is GatewayEvent.Snapshot -> {
+                val previousSessionId = state.value.selectedSessionId
                 event.pendingTools.forEach(::notifyToolApproval)
                 event.patchProposals.forEach(::notifyPatchProposal)
                 val attentionSessionId = requestedAttentionSessionId
                 _state.update {
                     val selectedSessionId = attentionSessionId
+                        ?: it.pendingSessionSelectionId
                         ?: event.activeSessionId
                         ?: it.selectedSessionId
                         ?: event.sessions.firstOrNull()?.id
@@ -1441,6 +1474,10 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
                         status = ConnectionStatus.Connected,
                     )
                 }
+                if (previousSessionId != state.value.selectedSessionId) {
+                    _state.update { it.clearCapabilities() }
+                    requestCapabilities()
+                }
                 attentionSessionId?.let { sessionId ->
                     requestedAttentionSessionId = null
                     send(GatewayEnvelope(type = "session.select", sessionId = sessionId))
@@ -1448,20 +1485,28 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
                 flushPendingAttentionActions()
             }
             is GatewayEvent.SessionUpsert -> {
+                val previousSessionId = state.value.selectedSessionId
                 _state.update {
                     val sessions = (it.sessions.filterNot { session -> session.id == event.session.id } + event.session)
                         .sortedByDescending { session -> session.isActive }
                     it.copy(
                         sessions = sessions,
-                        selectedSessionId = event.session.id,
+                        selectedSessionId = if (event.session.isActive || it.selectedSessionId == null) event.session.id else it.selectedSessionId,
                         status = ConnectionStatus.Connected,
                     )
+                }
+                if (previousSessionId != state.value.selectedSessionId) {
+                    _state.update { it.clearCapabilities() }
+                    requestCapabilities()
                 }
             }
             is GatewayEvent.Ack -> {
                 _state.update {
                     it.copy(
-                        selectedSessionId = event.sessionId ?: it.selectedSessionId,
+                        selectedSessionId = if (event.commandType == "session.configure" ||
+                            (event.commandType == "session.select" && it.pendingSessionSelectionId != null && event.sessionId != it.pendingSessionSelectionId)
+                        ) it.selectedSessionId else event.sessionId ?: it.selectedSessionId,
+                        pendingSessionSelectionId = if (event.commandType == "session.select" && event.sessionId == it.pendingSessionSelectionId) null else it.pendingSessionSelectionId,
                         commandStatuses = it.commandStatuses.markCommandAccepted(
                             commandId = event.commandId,
                             commandType = event.commandType,
@@ -1469,8 +1514,15 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
                         logLines = it.logLines.append(GatewayLogLine("ack", event.commandType)),
                     )
                 }
+                if (event.commandType == "session.configure" || event.commandType == "session.select") requestCapabilities()
             }
             is GatewayEvent.Error -> {
+                val failedType = state.value.commandStatuses.firstOrNull { it.id == event.commandId }?.type
+                if (failedType == "session.configure") {
+                    _state.update { it.copy(errorMessage = event.message, commandStatuses = it.commandStatuses.markCommandFailed(event.commandId, event.message)) }
+                    requestCapabilities()
+                    return
+                }
                 val unsupportedCommand = event.unsupportedCommandType()
                 if (unsupportedCommand != null) {
                     // 桌面端（尤其 willdeep-rs CLI）只实现了协议子集：拒掉的是这一条命令，
@@ -1637,7 +1689,7 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
                 }
             }
             is GatewayEvent.CapabilitiesUpdated -> {
-                _state.update { it.applyCapabilities(event.capabilities) }
+                _state.update { it.applyCapabilitiesEvent(event) }
             }
             is GatewayEvent.Raw -> Unit
         }
@@ -1760,7 +1812,10 @@ private fun List<StoredGatewayCredential>.toRemoteMacSummaries(
     return map { credential ->
         RemoteMacSummary(
             id = credential.id,
-            name = credential.desktopName,
+            name = credential.displayName,
+            originalName = credential.desktopName,
+            alias = credential.alias,
+            computerPlatform = credential.computerPlatform,
             lastDesktopResponseAtEpochMillis = credential.lastDesktopResponseAtEpochMillis,
             isSelected = credential.id == selectedId,
         )
@@ -1820,7 +1875,7 @@ internal fun GatewayEvent.isDesktopHeartbeatEvent(): Boolean {
     }
 }
 
-private fun MobileGatewayUiState.applyCapabilities(
+internal fun MobileGatewayUiState.applyCapabilities(
     capabilities: GatewayCapabilities,
 ): MobileGatewayUiState {
     val providers = capabilities.providers.toMobileOptions()
@@ -1847,6 +1902,13 @@ private fun MobileGatewayUiState.applyCapabilities(
         ?: ""
 
     return copy(
+        supportsConfiguration = capabilities.supportsConfiguration,
+        capabilitiesLoaded = true,
+        modelsStatus = capabilities.modelsStatus,
+        isReadOnlyWorkspace = capabilities.activeApprovalMode?.replace('-', '_') == "read_only",
+        approvalMode = capabilities.activeApprovalMode?.toApprovalMode() ?: approvalMode,
+        approvalModeReported = if (capabilities.activeApprovalMode != null) capabilities.activeApprovalMode.toApprovalMode() != null else approvalModeReported,
+        availableApprovalModes = capabilities.approvalModes?.mapNotNull { it.toApprovalMode() } ?: ApprovalMode.entries,
         providerOptions = providers,
         modelOptions = models,
         skillOptions = skills,
@@ -1854,9 +1916,9 @@ private fun MobileGatewayUiState.applyCapabilities(
         pluginOptions = plugins,
         selectedProviderId = selectedProvider,
         selectedModelId = selectedModel,
-        selectedSkillIds = selectedSkillIds.reconcileSelection(skills),
-        selectedExpertIds = selectedExpertIds.reconcileSelection(experts),
-        selectedPluginIds = selectedPluginIds.reconcileSelection(plugins),
+        selectedSkillIds = if (capabilities.supportsConfiguration) skills.filter { it.isActive }.map { it.id }.toSet() else selectedSkillIds.reconcileSelection(skills),
+        selectedExpertIds = if (capabilities.supportsConfiguration) experts.filter { it.isActive }.map { it.id }.toSet() else selectedExpertIds.reconcileSelection(experts),
+        selectedPluginIds = if (capabilities.supportsConfiguration) plugins.filter { it.isActive }.map { it.id }.toSet() else selectedPluginIds.reconcileSelection(plugins),
     )
 }
 
@@ -2037,9 +2099,17 @@ internal fun List<GatewayMessage>.markMessageDone(
 }
 
 internal fun ApprovalMode.gatewayValue(): String = when (this) {
+    ApprovalMode.AskEveryTime -> "strict"
+    ApprovalMode.SmartApproval -> "smart"
+    ApprovalMode.WorkspaceWritable -> "workspace-write"
+    ApprovalMode.FullAccess -> "full-access"
+}
+
+internal fun ApprovalMode.legacyGatewayValue(): String = when (this) {
     ApprovalMode.AskEveryTime -> "ask_every_time"
     ApprovalMode.SmartApproval -> "smart_approval"
     ApprovalMode.WorkspaceWritable -> "workspace_writable"
+    ApprovalMode.FullAccess -> "full_access"
 }
 
 internal fun Map<String, String>.keepAnswersFor(approvals: List<PendingToolApproval>): Map<String, String> {
@@ -2073,4 +2143,26 @@ private fun List<GatewayWorktree>.forSession(sessionId: String?): GatewayWorktre
     if (isEmpty()) return null
     if (sessionId.isNullOrBlank()) return firstOrNull()
     return firstOrNull { it.sessionId == sessionId } ?: firstOrNull()
+}
+
+internal fun String.toApprovalMode(): ApprovalMode? = when (lowercase().replace('-', '_')) {
+    "strict", "ask_every_time", "request_every_time", "requesteverytime" -> ApprovalMode.AskEveryTime
+    "smart", "smart_approval" -> ApprovalMode.SmartApproval
+    "workspace_write", "workspace_access", "workspace_writable", "workspaceaccess" -> ApprovalMode.WorkspaceWritable
+    "full_access", "fullaccess", "silent", "silent_mode" -> ApprovalMode.FullAccess
+    else -> null
+}
+
+internal fun MobileGatewayUiState.clearCapabilities(): MobileGatewayUiState = copy(
+    providerOptions = emptyList(), modelOptions = emptyList(), skillOptions = emptyList(),
+    expertOptions = emptyList(), pluginOptions = emptyList(), selectedProviderId = "", selectedModelId = "",
+    selectedSkillIds = emptySet(), selectedExpertIds = emptySet(), selectedPluginIds = emptySet(),
+    approvalModeReported = false, supportsConfiguration = false, capabilitiesLoaded = false,
+    approvalMode = ApprovalMode.SmartApproval,
+    availableApprovalModes = ApprovalMode.entries, modelsStatus = null, isReadOnlyWorkspace = false,
+)
+
+internal fun MobileGatewayUiState.applyCapabilitiesEvent(event: GatewayEvent.CapabilitiesUpdated): MobileGatewayUiState {
+    if (event.sessionId != null && selectedSessionId != null && event.sessionId != selectedSessionId) return this
+    return applyCapabilities(event.capabilities).copy(selectedSessionId = selectedSessionId ?: event.sessionId)
 }

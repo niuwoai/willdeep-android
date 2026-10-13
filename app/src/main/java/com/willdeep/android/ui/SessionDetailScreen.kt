@@ -5,6 +5,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +14,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -58,6 +62,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -178,7 +185,7 @@ fun SessionDetailScreen(
                 isResponding = isResponding,
                 onMessageChange = viewModel::updateMessage,
                 onSend = viewModel::sendMessage,
-                onStop = viewModel::stopTurn,
+                onRequestCapabilities = viewModel::requestCapabilities,
                 onAddAttachment = viewModel::addAttachment,
                 onRemoveAttachment = viewModel::removeAttachment,
                 onApprovalModeChange = viewModel::updateApprovalMode,
@@ -293,20 +300,32 @@ private fun SessionDetailTabs(
     selected: SessionDetailTab,
     onSelected: (SessionDetailTab) -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
     ) {
+      Row(modifier = Modifier.padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         SessionDetailTab.entries.forEach { tab ->
-            FilterChip(
-                selected = selected == tab,
-                onClick = { onSelected(tab) },
-                label = { Text(stringResource(tab.labelResource())) },
-                modifier = Modifier.weight(1f),
-            )
+            val active = selected == tab
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = if (active) MaterialTheme.colorScheme.surface else androidx.compose.ui.graphics.Color.Transparent,
+                shadowElevation = if (active) 1.dp else 0.dp,
+                modifier = Modifier.weight(1f).selectable(
+                    selected = active, onClick = { onSelected(tab) }, role = Role.Tab,
+                ),
+            ) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.height(48.dp)) {
+                    Text(
+                        stringResource(tab.labelResource()),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
+      }
     }
 }
 
@@ -368,7 +387,7 @@ private fun MessageInputBar(
     isResponding: Boolean,
     onMessageChange: (String) -> Unit,
     onSend: () -> Unit,
-    onStop: () -> Unit,
+    onRequestCapabilities: () -> Unit,
     onAddAttachment: (Uri) -> Unit,
     onRemoveAttachment: (Uri) -> Unit,
     onApprovalModeChange: (ApprovalMode) -> Unit,
@@ -403,8 +422,8 @@ private fun MessageInputBar(
 
     Surface(
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 3.dp,
-        shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
+        tonalElevation = 0.dp,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
         modifier = Modifier
             .fillMaxWidth()
             .imePadding()
@@ -476,7 +495,7 @@ private fun MessageInputBar(
             }
             RunControlStrip(
                 state = state,
-                onOpenPicker = { activePicker = it },
+                onOpenPicker = { activePicker = it; onRequestCapabilities() },
             )
             Row(
                 modifier = Modifier
@@ -511,8 +530,8 @@ private fun MessageInputBar(
                 ) {
                     Box(
                         modifier = Modifier
-                            .heightIn(min = 112.dp, max = 180.dp)
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                            .heightIn(min = 64.dp, max = 132.dp)
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
                         contentAlignment = Alignment.TopStart,
                     ) {
                         if (state.messageText.isEmpty()) {
@@ -540,39 +559,7 @@ private fun MessageInputBar(
                         )
                     }
                 }
-                FilledIconButton(
-                    onClick = {
-                        if (isResponding) onStop() else onSend()
-                    },
-                    enabled = isResponding || canSend,
-                    shape = CircleShape,
-                    modifier = Modifier.size(46.dp),
-                    colors = if (isResponding) {
-                        IconButtonDefaults.filledIconButtonColors(
-                            containerColor = Color(0xFFD94335),
-                            contentColor = Color.White,
-                        )
-                    } else {
-                        IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            disabledContentColor = MaterialTheme.colorScheme.outline,
-                        )
-                    },
-                ) {
-                    Icon(
-                        painter = painterResource(
-                            if (isResponding) R.drawable.ic_stop_square else R.drawable.ic_send
-                        ),
-                        contentDescription = if (isResponding) {
-                            stringResource(R.string.stop_turn_button)
-                        } else {
-                            stringResource(R.string.send_button)
-                        },
-                        modifier = Modifier.size(if (isResponding) 18.dp else 22.dp),
-                    )
-                }
+                ComposerSendButton(canSend = canSend, isResponding = isResponding, onSend = onSend)
             }
             ComposerReviewDock(
                 state = state,
@@ -621,7 +608,7 @@ private fun RunControlStrip(
         item {
             ControlIconButton(
                 iconRes = R.drawable.ic_approval,
-                contentDescription = stringResource(state.approvalMode.labelRes()),
+                contentDescription = stringResource(if (state.isReadOnlyWorkspace) R.string.approval_mode_read_only else state.approvalMode.labelRes()),
                 active = true,
                 onClick = { onOpenPicker(CapabilityPickerKind.Approval) },
             )
@@ -683,12 +670,13 @@ private fun ControlIconButton(
     Box(modifier = Modifier.size(40.dp)) {
         Surface(
             onClick = onClick,
-            shape = CircleShape,
+            shape = RoundedCornerShape(12.dp),
             color = if (active) {
                 MaterialTheme.colorScheme.primaryContainer
             } else {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)
+                MaterialTheme.colorScheme.surfaceContainerLow
             },
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
             modifier = Modifier
                 .size(38.dp)
                 .align(Alignment.Center),
@@ -747,7 +735,7 @@ private fun CapabilityPickerSheet(
     onPluginToggle: (String) -> Unit,
 ) {
     if (kind == null) return
-    val approvalOptions = ApprovalMode.entries.map { mode ->
+    val approvalOptions = state.availableApprovalModes.map { mode ->
         MobileCapabilityOption(id = mode.name, title = stringResource(mode.labelRes()))
     }
     val title = when (kind) {
@@ -814,12 +802,18 @@ private fun CapabilityPickerSheet(
             }
             if (options.isEmpty()) {
                 Text(
-                    text = stringResource(R.string.composer_capability_empty),
+                    text = stringResource(if (state.capabilitiesLoaded) R.string.composer_capability_empty else R.string.composer_capability_loading),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier.padding(vertical = 24.dp),
                 )
             } else {
+                if (kind == CapabilityPickerKind.Model && state.modelsStatus == "unavailable") {
+                    Text(stringResource(R.string.composer_models_partial), style = MaterialTheme.typography.bodySmall)
+                }
+                if (state.capabilitiesLoaded && !state.supportsConfiguration) {
+                    Text(stringResource(R.string.composer_configuration_legacy), style = MaterialTheme.typography.bodySmall)
+                }
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(bottom = 6.dp),
@@ -942,6 +936,17 @@ private fun ComposerReviewDock(
     if (!hasApprovals && !hasQueue) {
         return
     }
+    val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val keyboardController = LocalSoftwareKeyboardController.current
+    if (keyboardVisible) {
+        TextButton(
+            onClick = { keyboardController?.hide() },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.composer_review_collapsed))
+        }
+        return
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -956,6 +961,7 @@ private fun ComposerReviewDock(
         if (hasApprovals) {
             ApprovalCard(
                 state = state,
+                showHeading = false,
                 onToolDecision = onToolDecision,
                 onToolAnswerChange = onToolAnswerChange,
                 onToolConfirmationChange = onToolConfirmationChange,
@@ -977,6 +983,7 @@ private fun ApprovalMode.labelRes(): Int = when (this) {
     ApprovalMode.AskEveryTime -> R.string.approval_mode_ask_every_time
     ApprovalMode.SmartApproval -> R.string.approval_mode_smart
     ApprovalMode.WorkspaceWritable -> R.string.approval_mode_workspace_writable
+    ApprovalMode.FullAccess -> R.string.approval_mode_full_access
 }
 
 private fun Set<String>.countBadge(): String? {
