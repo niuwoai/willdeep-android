@@ -43,3 +43,29 @@ third-party Umeng x86_64 native library with 4 KB ELF alignment. APK ZIP alignme
 is checked separately at 16 KB; that check alone does not prove every native
 library supports a 16 KB device. This release has not been validated end to end on
 a 16 KB x86_64 device. The build report does not imply a live phone-to-desktop test.
+
+## Real phone acceptance
+
+After installing the signed Release APK, build `:app:assembleDebugAndroidTest`, then
+run `ruby scripts/security_device_check.rb` to sign and install the separate test
+package with the same private release key. This does not clear or reinstall the
+production application. Set `ADB` if adb is not on PATH.
+
+`scripts/live_host_device_check.rb --backend mac|rust --credential <hashed-device-id>`
+uses the phone's encrypted saved pairing and the production gateway client. The
+computer must be running; Rust must already have the isolated test workspace
+registered. Use `--workspace <isolated-path>` to select that workspace. Never pass
+a pairing token as the credential argument; it is the local hashed device ID.
+
+The harness creates a new session, sets strict approval mode, sends one request,
+checks the complete command against an exact constant-output Ruby command before
+approving, and waits for the matching completed assistant reply. It follows the
+normal five-second session polling and restores the previously selected computer.
+It refuses interactive confirmations and any other command. Reports are written
+under ignored `build/mobile-live/<backend>/`; they are separate from build reports.
+
+This checks real phone-to-host transport and command round trips, not every Compose
+screen interaction. Mac approval previews currently truncate at 300 characters,
+including host permission metadata. A truncated command must be reviewed on the
+computer; the harness must fail rather than approve a partial preview. A passing
+short-command test does not validate full long-command or multi-file diff review.

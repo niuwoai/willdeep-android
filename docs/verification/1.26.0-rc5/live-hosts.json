@@ -1,0 +1,55 @@
+{
+  "android_version": "1.26.0-rc5",
+  "version_code": 123,
+  "apk_sha256": "1d842eca120a9c93305e6b142bf27eb18d6859e51b64d79680715fe05033a5a2",
+  "host_versions": {
+    "mac": "1.422.0-rc8 (930)",
+    "rust_runtime": "0.111.0-rc1"
+  },
+  "method": "Production gateway client in same-signed instrumentation against installed Release APK on a real phone",
+  "backends": [
+    {
+      "backend": "mac",
+      "tested_at": "2026-10-21T16:14:27+08:00",
+      "passed": true,
+      "transport": "HTTPS/WSS public relay",
+      "stages": {
+        "session_list": true,
+        "isolated_session": true,
+        "message_ack": true,
+        "approval_received": true,
+        "approval_applied": true,
+        "assistant_reply": true
+      },
+      "marker": "260315",
+      "approval_receipt": "ack",
+      "existing_app_data_cleared": false,
+      "approval_scope": "new session; exact ruby -e constant output only"
+    },
+    {
+      "backend": "rust",
+      "tested_at": "2026-10-21T16:17:47+08:00",
+      "passed": true,
+      "transport": "HTTPS/WSS public relay",
+      "stages": {
+        "session_list": true,
+        "isolated_session": true,
+        "message_ack": true,
+        "approval_received": true,
+        "approval_applied": true,
+        "assistant_reply": true
+      },
+      "marker": "726145",
+      "approval_receipt": "ack",
+      "existing_app_data_cleared": false,
+      "approval_scope": "new session; exact ruby -e constant output only"
+    }
+  ],
+  "scope": "HTTPS/WSS relay, new isolated sessions, message delivery, exact constant-output command approval, final reply",
+  "limitations": [
+    "Not a complete Compose screen UI acceptance",
+    "Mac approval preview is limited to 300 characters including permission metadata; truncated commands must be reviewed on the computer",
+    "Not full long-command or multi-file diff review",
+    "No application-layer relay E2EE"
+  ]
+}
