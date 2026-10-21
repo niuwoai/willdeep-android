@@ -15,7 +15,7 @@ class MobileGatewayModelsTest {
         val payload = PairingPayload.parse(
             """
             {
-              "base_url": "http://192.168.1.20:8877/",
+              "base_url": "https://192.168.1.20:8877/",
               "pairing_token": "pair_123",
               "protocol_version": "mobile-gateway.v1",
               "desktop_name": "Rocky's Mac",
@@ -24,7 +24,7 @@ class MobileGatewayModelsTest {
             """.trimIndent()
         )
 
-        assertEquals("http://192.168.1.20:8877", payload.baseUrl)
+        assertEquals("https://192.168.1.20:8877", payload.baseUrl)
         assertEquals(emptyList<String>(), payload.fallbackBaseUrls)
         assertEquals("pair_123", payload.pairingToken)
         assertEquals("mobile-gateway.v1", payload.protocolVersion)
@@ -36,10 +36,10 @@ class MobileGatewayModelsTest {
         val payload = PairingPayload.parse(
             """
             {
-              "base_url": "http://192.168.1.20:8877/",
+              "base_url": "https://192.168.1.20:8877/",
               "fallback_base_urls": [
-                "http://100.90.80.70:8877/",
-                "http://192.168.1.20:8877",
+                "https://100.90.80.70:8877/",
+                "https://192.168.1.20:8877",
                 "not a url"
               ],
               "pairing_token": "pair_123",
@@ -50,8 +50,8 @@ class MobileGatewayModelsTest {
             """.trimIndent()
         )
 
-        assertEquals("http://192.168.1.20:8877", payload.baseUrl)
-        assertEquals(listOf("http://100.90.80.70:8877"), payload.fallbackBaseUrls)
+        assertEquals("https://192.168.1.20:8877", payload.baseUrl)
+        assertEquals(listOf("https://100.90.80.70:8877"), payload.fallbackBaseUrls)
     }
 
     @Test
@@ -59,7 +59,7 @@ class MobileGatewayModelsTest {
         val payload = PairingPayload.parse(
             """
             {
-              "base_url": "http://192.168.1.20:8877/#tailscale=100.90.80.70",
+              "base_url": "https://192.168.1.20:8877/#tailscale=100.90.80.70",
               "pairing_token": "pair_123",
               "protocol_version": "mobile-gateway.v1",
               "desktop_name": "Rocky's Mac",
@@ -68,8 +68,8 @@ class MobileGatewayModelsTest {
             """.trimIndent()
         )
 
-        assertEquals("http://192.168.1.20:8877", payload.baseUrl)
-        assertEquals(listOf("http://100.90.80.70:8877"), payload.fallbackBaseUrls)
+        assertEquals("https://192.168.1.20:8877", payload.baseUrl)
+        assertEquals(listOf("https://100.90.80.70:8877"), payload.fallbackBaseUrls)
     }
 
     @Test
@@ -77,7 +77,7 @@ class MobileGatewayModelsTest {
         val payload = PairingPayload.parse(
             """
             {
-              "base_url": "http://192.168.1.20:8877/",
+              "base_url": "https://192.168.1.20:8877/",
               "pairing_token": "pair_123",
               "protocol_version": "mobile-gateway.v1",
               "desktop_name": "Rocky's Mac",
@@ -187,7 +187,7 @@ class MobileGatewayModelsTest {
         assertInvalidPairingPayload(
             """
             {
-              "base_url": "http://192.168.1.20:8877/",
+              "base_url": "https://192.168.1.20:8877/",
               "protocol_version": "mobile-gateway.v1",
               "desktop_name": "Rocky's Mac",
               "expires_at": "2036-06-13T12:02:00Z"
@@ -200,7 +200,7 @@ class MobileGatewayModelsTest {
     fun pairingPayloadParsesAppDeepLinkPayload() {
         val json = """
             {
-              "base_url": "http://192.168.1.20:8877/",
+              "base_url": "https://192.168.1.20:8877/",
               "pairing_token": "pair_123",
               "protocol_version": "mobile-gateway.v1",
               "desktop_name": "Rocky's Mac",
@@ -210,7 +210,7 @@ class MobileGatewayModelsTest {
         val encoded = Base64.getUrlEncoder().withoutPadding().encodeToString(json.toByteArray())
         val payload = PairingPayload.parse("willdeep://mobile/pair?p=$encoded")
 
-        assertEquals("http://192.168.1.20:8877", payload.baseUrl)
+        assertEquals("https://192.168.1.20:8877", payload.baseUrl)
         assertEquals("pair_123", payload.pairingToken)
     }
 
@@ -225,9 +225,9 @@ class MobileGatewayModelsTest {
 
     @Test
     fun pairingPayloadParsesCompactLocalH5Url() {
-        val payload = PairingPayload.parse("https://h5.example.com/?b=http%3A%2F%2F192.168.1.20%3A8877&k=pair_123")
+        val payload = PairingPayload.parse("https://h5.example.com/?b=https%3A%2F%2F192.168.1.20%3A8877&k=pair_123")
 
-        assertEquals("http://192.168.1.20:8877", payload.baseUrl)
+        assertEquals("https://192.168.1.20:8877", payload.baseUrl)
         assertEquals("pair_123", payload.pairingToken)
         assertEquals("WillDeep Mac", payload.desktopName)
     }
@@ -235,12 +235,12 @@ class MobileGatewayModelsTest {
     @Test
     fun connectionBaseUrlsDeduplicatesPrimaryAndFallbacks() {
         assertEquals(
-            listOf("http://192.168.1.20:8877", "http://100.90.80.70:8877"),
+            listOf("https://192.168.1.20:8877", "https://100.90.80.70:8877"),
             connectionBaseUrls(
-                baseUrl = "http://192.168.1.20:8877/",
+                baseUrl = "https://192.168.1.20:8877/",
                 fallbackBaseUrls = listOf(
-                    "http://100.90.80.70:8877/",
-                    "http://192.168.1.20:8877",
+                    "https://100.90.80.70:8877/",
+                    "https://192.168.1.20:8877",
                     "",
                 ),
             ),
@@ -252,7 +252,7 @@ class MobileGatewayModelsTest {
         val payload = PairingPayload.parse(
             """
             {
-              "base_url": "http://192.168.1.20:8877/",
+              "base_url": "https://192.168.1.20:8877/",
               "pairing_token": "pair_123",
               "protocol_version": "mobile-gateway.v1",
               "desktop_name": "Rocky's Mac",
@@ -270,7 +270,7 @@ class MobileGatewayModelsTest {
         val compatible = PairingPayload.parse(
             """
             {
-              "base_url": "http://192.168.1.20:8877/",
+              "base_url": "https://192.168.1.20:8877/",
               "pairing_token": "pair_123",
               "protocol_version": "mobile-gateway.v1",
               "desktop_name": "Rocky's Mac",
@@ -281,7 +281,7 @@ class MobileGatewayModelsTest {
         val incompatible = PairingPayload.parse(
             """
             {
-              "base_url": "http://192.168.1.20:8877/",
+              "base_url": "https://192.168.1.20:8877/",
               "pairing_token": "pair_123",
               "protocol_version": "mobile-gateway.v2",
               "desktop_name": "Rocky's Mac",
@@ -300,7 +300,7 @@ class MobileGatewayModelsTest {
         assertInvalidPairingPayload(
             """
             {
-              "base_url": "http://192.168.1.20:8877/",
+              "base_url": "https://192.168.1.20:8877/",
               "protocol_version": "mobile-gateway.v1",
               "desktop_name": "Rocky's Mac",
               "expires_at": "2026-06-13T12:02:00Z"
@@ -342,7 +342,7 @@ class MobileGatewayModelsTest {
         assertInvalidPairingPayload(
             """
             {
-              "base_url": "http://192.168.1.20:8877/",
+              "base_url": "https://192.168.1.20:8877/",
               "pairing_token": "pair_123",
               "desktop_name": "Rocky's Mac",
               "expires_at": "2026-06-13T12:02:00Z"
@@ -352,7 +352,7 @@ class MobileGatewayModelsTest {
         assertInvalidPairingPayload(
             """
             {
-              "base_url": "http://192.168.1.20:8877/",
+              "base_url": "https://192.168.1.20:8877/",
               "pairing_token": "pair_123",
               "protocol_version": "mobile-gateway.v1",
               "expires_at": "2026-06-13T12:02:00Z"
@@ -362,7 +362,7 @@ class MobileGatewayModelsTest {
         assertInvalidPairingPayload(
             """
             {
-              "base_url": "http://192.168.1.20:8877/",
+              "base_url": "https://192.168.1.20:8877/",
               "pairing_token": "pair_123",
               "protocol_version": "mobile-gateway.v1",
               "desktop_name": "Rocky's Mac"
@@ -372,7 +372,7 @@ class MobileGatewayModelsTest {
         assertInvalidPairingPayload(
             """
             {
-              "base_url": "http://192.168.1.20:8877/",
+              "base_url": "https://192.168.1.20:8877/",
               "pairing_token": "pair_123",
               "protocol_version": "mobile-gateway.v1",
               "desktop_name": "Rocky's Mac",
@@ -383,7 +383,7 @@ class MobileGatewayModelsTest {
         assertInvalidPairingPayload(
             """
             {
-              "base_url": "http://192.168.1.20:8877/",
+              "base_url": "https://192.168.1.20:8877/",
               "pairing_token": "pair_123",
               "protocol_version": "mobile-gateway.v1",
               "desktop_name": "Rocky's Mac",

@@ -468,6 +468,15 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
             var terminalRequiresRePair = false
             var terminalMessage: String? = null
             val endpoints = credential.connectionBaseUrls()
+            if (endpoints.isEmpty()) {
+                reconnectRequested = false
+                _state.update { it.copy(
+                    status = ConnectionStatus.Disconnected,
+                    isTransportConnected = false,
+                    errorMessage = getApplication<Application>().getString(R.string.error_gateway_secure_transport_required),
+                ) }
+                return
+            }
             for (endpoint in endpoints) {
                 if (!reconnectRequested) return
                 _state.update {

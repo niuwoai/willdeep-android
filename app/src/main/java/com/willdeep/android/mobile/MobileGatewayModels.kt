@@ -61,8 +61,7 @@ data class PairingPayload(
                 // 局域网网关模式没有中继字段可推导，这些字段仍然必填。
                 val baseUrlRaw = json.optString("base_url").trim()
                     .ifBlank { if (hasAnyRelayField) relayBaseUrl.orEmpty() else "" }
-                val baseHttpUrl = baseUrlRaw.toHttpUrlOrNull()
-                    ?: throw InvalidPairingPayloadException()
+                val baseHttpUrl = GatewayTransportPolicy.requireSecureBaseUrl(baseUrlRaw)
                 val baseUrl = baseHttpUrl.newBuilder()
                     .fragment(null)
                     .build()
@@ -88,7 +87,7 @@ data class PairingPayload(
                 val fallbackBaseUrls = normalizedFallbackBaseUrls(
                     baseUrl = baseUrl,
                     explicitFallbacks = json.optJSONArray("fallback_base_urls"),
-                    fragment = baseHttpUrl.fragment,
+                    fragment = baseUrlRaw.toHttpUrlOrNull()?.fragment,
                     port = baseHttpUrl.port,
                     scheme = baseHttpUrl.scheme,
                 )
@@ -195,21 +194,14 @@ private fun Map<String, String>.firstValue(vararg keys: String): String? {
 private fun normalizedOptionalBaseUrl(raw: String): String? {
     val trimmed = raw.trim()
     if (trimmed.isBlank()) return null
-    return trimmed.toHttpUrlOrNull()
-        ?.newBuilder()
-        ?.fragment(null)
-        ?.build()
-        ?.toString()
-        ?.trimEnd('/')
+    return GatewayTransportPolicy.normalizeOrNull(trimmed)
+        ?: throw InvalidPairingPayloadException()
 }
 
 fun connectionBaseUrls(baseUrl: String, fallbackBaseUrls: List<String>): List<String> {
     val seen = LinkedHashSet<String>()
     (listOf(baseUrl) + fallbackBaseUrls).forEach { raw ->
-        val normalized = raw.trim().trimEnd('/')
-        if (normalized.isNotBlank() && normalized.toHttpUrlOrNull() != null) {
-            seen.add(normalized)
-        }
+        GatewayTransportPolicy.normalizeOrNull(raw)?.let(seen::add)
     }
     return seen.toList()
 }

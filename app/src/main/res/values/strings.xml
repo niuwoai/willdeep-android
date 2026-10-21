@@ -91,7 +91,8 @@
     <string name="error_gateway_protocol_mismatch">Gateway protocol mismatch: %1$s.</string>
     <string name="error_gateway_pairing_not_allowed">Mac Mobile Gateway is not allowing pairing right now.</string>
     <string name="error_gateway_health_target_missing">Paste a pairing payload or pair with a Mac before checking gateway health.</string>
-    <string name="error_pairing_payload_invalid">Paste the pairing QR payload from WillDeep Settings.</string>
+    <string name="error_pairing_payload_invalid">Scan a current WillDeep pairing QR code using HTTPS. Plain HTTP network gateways are no longer supported.</string>
+    <string name="error_gateway_secure_transport_required">This pairing uses an insecure HTTP gateway. Scan a current secure relay or HTTPS gateway QR code. Your saved pairing has been kept.</string>
     <string name="error_desktop_heartbeat_timeout">No remote computer message for 20 seconds. If the remote computer is open, scan its current pairing QR code again.</string>
     <string name="error_pairing_payload_expired">This pairing QR code has expired. Generate a new one on the Mac.</string>
     <string name="camera_permission_required">Camera permission is required to scan the Mac pairing QR code.</string>

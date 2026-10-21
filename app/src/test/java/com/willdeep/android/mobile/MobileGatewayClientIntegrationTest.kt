@@ -8,6 +8,7 @@ import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import java.io.Closeable
 import java.io.InputStream
@@ -25,6 +26,32 @@ import kotlin.concurrent.thread
 import kotlin.experimental.xor
 
 class MobileGatewayClientIntegrationTest {
+    @Test
+    fun httpErrorDoesNotExposeServerBody() {
+        TestGateway().use { gateway ->
+            val error = assertThrows(java.io.IOException::class.java) {
+                runBlocking { MobileGatewayClient().claimPairing(
+                    gateway.pairingPayload().copy(pairingToken = "invalid-test-token"), "Test",
+                ) }
+            }
+            assertEquals("HTTP 401", error.message)
+        }
+    }
+
+    @Test
+    fun pairingRedirectDoesNotSendSecretToAnotherEndpoint() {
+        TestGateway().use { destination ->
+            TestGateway(redirectTo = destination.baseUrl + "/mobile/pair/claim").use { source ->
+                assertThrows(java.io.IOException::class.java) {
+                    runBlocking { MobileGatewayClient().claimPairing(source.pairingPayload(), "Test") }
+                }
+                assertEquals(1, source.pairClaimHeaders.size)
+                assertTrue(destination.pairClaimHeaders.isEmpty())
+                assertTrue(destination.healthHeaders.isEmpty())
+            }
+        }
+    }
+
     @Test
     fun claimPairingSendsVersionHeaderAndParsesDeviceToken() = runBlocking {
         TestGateway().use { gateway ->
@@ -80,7 +107,7 @@ class MobileGatewayClientIntegrationTest {
     }
 }
 
-private class TestGateway : Closeable {
+private class TestGateway(private val redirectTo: String? = null) : Closeable {
     val deviceToken = "device_test_token"
     val baseUrl: String
     val healthHeaders = CopyOnWriteArrayList<Map<String, String>>()
@@ -149,6 +176,10 @@ private class TestGateway : Closeable {
 
     private fun handlePairClaim(output: OutputStream, request: HttpRequest) {
         pairClaimHeaders += request.headers
+        if (redirectTo != null) {
+            output.writeTextResponse("307 Temporary Redirect", mapOf("Location" to redirectTo))
+            return
+        }
         val body = JSONObject(request.body)
         val status = if (body.optString("pairing_token") == "pair_test_token") 200 else 401
         val response = if (status == 200) {

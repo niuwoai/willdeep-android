@@ -27,7 +27,7 @@ object MobilePushManager {
                 BuildConfig.UMENG_CHANNEL,
             )
         }.onFailure { error ->
-            Log.w(TAG, "Umeng preInit failed: ${error.message}")
+            Log.w(TAG, "Umeng preInit failed: ${error.javaClass.simpleName}")
         }
     }
 
@@ -56,11 +56,11 @@ object MobilePushManager {
                 }
 
                 override fun onFailure(errorCode: String, errorMessage: String) {
-                    Log.w(TAG, "Umeng register failed: $errorCode $errorMessage")
+                    Log.w(TAG, "Umeng register failed")
                 }
             })
         }.onFailure { error ->
-            Log.w(TAG, "Umeng initialize failed: ${error.message}")
+            Log.w(TAG, "Umeng initialize failed: ${error.javaClass.simpleName}")
         }
     }
 

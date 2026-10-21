@@ -91,7 +91,8 @@
     <string name="error_gateway_protocol_mismatch">Gateway 协议不匹配：%1$s。</string>
     <string name="error_gateway_pairing_not_allowed">Mac Mobile Gateway 当前不允许配对。</string>
     <string name="error_gateway_health_target_missing">请先粘贴配对 payload，或先与 Mac 配对后再检查 Gateway 健康状态。</string>
-    <string name="error_pairing_payload_invalid">请粘贴 WillDeep 设置里的配对二维码 payload。</string>
+    <string name="error_pairing_payload_invalid">请扫描 WillDeep 当前的 HTTPS 配对二维码，已不再支持明文 HTTP 网络网关。</string>
+    <string name="error_gateway_secure_transport_required">此配对使用不安全的 HTTP 网关。请扫描安全中继或 HTTPS 网关的当前二维码；原有配对数据已保留。</string>
     <string name="error_desktop_heartbeat_timeout">20 秒没有收到远端电脑消息；如果远端电脑已打开，请重新扫描当前配对二维码。</string>
     <string name="error_pairing_payload_expired">这个配对二维码已经过期。请在 Mac 上重新生成。</string>
     <string name="camera_permission_required">需要相机权限才能扫描 Mac 配对二维码。</string>

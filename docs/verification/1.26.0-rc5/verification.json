@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-21",
+  "android_release": {
+    "version": "1.26.0-rc5",
+    "version_code": 123,
+    "application_id": "com.willdeep.android",
+    "minimum_android": 13,
+    "unit_tests": 128,
+    "unit_tests_skipped": 2,
+    "prerelease": true,
+    "lint": "passed",
+    "signature_verified": true,
+    "certificate_sha256": "cb3408b8760d6645a389c6b5eeded25065830ee8ba798549133f1973ca5fb349",
+    "apk": "WillDeep-1.26.0-rc5.apk",
+    "sha256": "1d842eca120a9c93305e6b142bf27eb18d6859e51b64d79680715fe05033a5a2",
+    "bytes": 55203108,
+    "lint_warnings": 104,
+    "lint_errors": 0
+  },
+  "device": {
+    "version": "1.26.0-rc5",
+    "version_code": 123,
+    "package": "com.willdeep.android",
+    "security_instrumentation": "passed",
+    "tests_passed": 1,
+    "backup_disabled": true,
+    "network_cleartext_disabled": true,
+    "app_data_cleared": false,
+    "test_apk_sha256": "9c3d3a5aa0b21abb0b27d1101478fb20ded139e73ee0bcee5070b970a6e21b00"
+  },
+  "installed_apk_sha256": "1d842eca120a9c93305e6b142bf27eb18d6859e51b64d79680715fe05033a5a2",
+  "desktop_checks": {
+    "mac_commit": "6eef64ed",
+    "mac_native_tests": {
+      "passed": 29,
+      "failed": 0
+    },
+    "mac_gateway_auth_tests": {
+      "passed": 6,
+      "failed": 0
+    },
+    "rust_commit": "dbc4f6c",
+    "rust_mobile_gateway_tests": {
+      "passed": 26,
+      "failed": 0
+    }
+  },
+  "git_history": {
+    "scanner": "gitleaks 8.30.1",
+    "commits_before_this_release": 87,
+    "raw_findings": 1,
+    "reviewed_test_fixtures": 1,
+    "confirmed_credential_leaks": 0,
+    "signing_files_in_reachable_history": false
+  },
+  "limitations": [
+    "Rule based scan does not prove no unknown-format secret exists",
+    "Relay service production authorization not penetration tested; no application-layer E2EE",
+    "128 Release tests include 2 existing skipped examples; lint has 104 existing warnings"
+  ]
+}

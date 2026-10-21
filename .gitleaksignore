@@ -1,0 +1,3 @@
+# Reviewed test fixture: the ordered 16-character hexadecimal sequence repeated twice.
+# This exact historical finding is not an operational relay credential. Do not use a broad token allowlist.
+fbb01d3e26143a535d42584647ca5fb16a96d146:app/src/test/java/com/willdeep/android/mobile/MobileGatewayModelsTest.kt:generic-api-key:86

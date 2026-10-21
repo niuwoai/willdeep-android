@@ -1,6 +1,14 @@
 # Product Overview
 
-> Last updated: 2026-10-13 | Current version: v1.26.0-rc4
+> Last updated: 2026-10-21 | Current version: v1.26.0-rc5
+
+Official website: [willdeep.com](https://willdeep.com) · [README](README.md) · [Apache-2.0](LICENSE)
+
+## Security update
+
+- Require HTTPS/WSS for network gateways, disable redirects, and permit cleartext only on literal on-device loopback. Existing HTTP pairings require secure re-pairing; credentials are retained during upgrades.
+- Remove raw gateway and push-payload error logging. Disable cloud backup and device-transfer extraction for all application data domains.
+- Security evidence and authorization boundaries: [docs/SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md).
 
 ## Public Android download
 
@@ -10,7 +18,7 @@
 
 ## Project Summary
 
-WillDeep Android is the native mobile companion for the WillDeep Mac desktop app. The phone connects to the Mac over the local network, displays Agent session state, and sends control commands. The Mac remains responsible for all Agent execution and safety decisions.
+WillDeep Android is the native mobile companion for the WillDeep Mac desktop app. The phone connects to the computer through a secure relay or a trusted HTTPS gateway, displays Agent session state, and sends control commands. The Mac remains responsible for all Agent execution and safety decisions.
 
 ## Core Features
 
@@ -22,7 +30,7 @@ WillDeep Android is the native mobile companion for the WillDeep Mac desktop app
 - Edit each paired computer's local alias and system label (macOS, Linux, Windows, or unspecified) from the computer picker, even while offline. Labels persist across reconnection and rescanning the same pairing; the original name and a stable short identifier remain visible. New CLI QR codes report the system through an explicit name prefix; legacy QR codes require a manual system label.
 
 - Pair with the Mac Mobile Gateway by scanning a short H5 QR URL such as `?r=<room>&t=<token>`, scanning the legacy JSON payload, or receiving a matching `willdeep://mobile/pair?...` deep link from the H5 page.
-- Preserve LAN-first pairing while accepting Tailscale fallback endpoints from `fallback_base_urls` or `base_url#tailscale=100.x.x.x` QR hints.
+- Accept HTTPS LAN/Tailscale fallback endpoints from `fallback_base_urls` or `base_url#tailscale=100.x.x.x` QR hints.
 - Show localized invalid-payload errors for malformed QR content or missing required pairing fields.
 - Require pairing payload desktop name and expiry fields before sending health or claim requests.
 - Reject malformed or unsupported gateway base URLs locally before sending health or claim requests.
@@ -33,7 +41,7 @@ WillDeep Android is the native mobile companion for the WillDeep Mac desktop app
 - Check Mac gateway health from either a pairing payload or the saved paired Mac, then display server version plus pairing availability without blocking paired-device diagnostics when new pairing is disabled.
 - Store long-lived device tokens securely on Android, migrate the legacy single-Mac credential automatically, recover safely from stale Keystore-encrypted pairing data, and switch between multiple paired remote Macs without rescanning.
 - Connect to the Mac gateway over WebSocket.
-- Retry Mac gateway health checks, pairing claims, and WebSocket connections against saved fallback endpoints when the LAN endpoint is unreachable.
+- Retry Mac gateway health checks, pairing claims, and WebSocket connections against saved secure fallback endpoints when the primary endpoint is unreachable.
 - Put the selected remote Mac at the top of the home hierarchy, with a bottom-sheet computer picker, per-device last-response information, and scan/remove controls.
 - Browse sessions through All, Working, Needs Confirmation, and Completed filters, grouped by project when project metadata is available or by workspace for older Mac gateways, with the newest three sessions shown by default and per-group expansion for older sessions.
 - Switch between all sessions and a single project/workspace from the compact scope control above the filters.
@@ -116,14 +124,14 @@ WillDeep Android is the native mobile companion for the WillDeep Mac desktop app
 ./gradlew :app:assembleDebug
 ```
 
-Install the debug APK on an Android device on the same LAN as the Mac running WillDeep Mobile Gateway.
+Install a debug APK only on a dedicated test device. For the release build, use scripts/security_device_check.rb after a signed in-place installation; it does not uninstall or clear the user application. Historical live smoke commands below require a trusted HTTPS gateway or an explicitly configured on-device loopback route.
 
 ## Verification
 
 ```bash
 ruby scripts/mobile_gateway_mock_integration.rb
 ruby scripts/android_connected_smoke_test.rb
-MOBILE_GATEWAY_PAIRING_PAYLOAD='{"base_url":"http://192.168.1.20:8877","pairing_token":"...","protocol_version":"mobile-gateway.v1","desktop_name":"WillDeep Mac","expires_at":"2026-06-14T12:02:00Z"}' MOBILE_GATEWAY_LIVE_MESSAGE='Create or update WILLDEEP_ANDROID_LIVE_ACCEPTANCE.md in the current workspace.' MOBILE_GATEWAY_EXPECT_AGENT_ACTIVITY=1 MOBILE_GATEWAY_EXPECT_CODE_ACTIVITY=1 MOBILE_GATEWAY_EXPECTED_TARGET_FILE=WILLDEEP_ANDROID_LIVE_ACCEPTANCE.md ruby scripts/android_connected_smoke_test.rb
+MOBILE_GATEWAY_PAIRING_PAYLOAD='{"base_url":"https://gateway.example.com","pairing_token":"...","protocol_version":"mobile-gateway.v1","desktop_name":"WillDeep Mac","expires_at":"2026-06-14T12:02:00Z"}' MOBILE_GATEWAY_LIVE_MESSAGE='Create or update WILLDEEP_ANDROID_LIVE_ACCEPTANCE.md in the current workspace.' MOBILE_GATEWAY_EXPECT_AGENT_ACTIVITY=1 MOBILE_GATEWAY_EXPECT_CODE_ACTIVITY=1 MOBILE_GATEWAY_EXPECTED_TARGET_FILE=WILLDEEP_ANDROID_LIVE_ACCEPTANCE.md ruby scripts/android_connected_smoke_test.rb
 REQUIRE_MOBILE_GATEWAY_LIVE_ACCEPTANCE=1 MOBILE_GATEWAY_LIVE_MESSAGE='Create or update WILLDEEP_ANDROID_LIVE_ACCEPTANCE.md in the current workspace.' MOBILE_GATEWAY_EXPECT_AGENT_ACTIVITY=1 MOBILE_GATEWAY_EXPECT_CODE_ACTIVITY=1 MOBILE_GATEWAY_EXPECTED_TARGET_FILE=WILLDEEP_ANDROID_LIVE_ACCEPTANCE.md ruby scripts/android_connected_smoke_test.rb
 ruby scripts/mobile_gateway_live_acceptance.rb
 ./gradlew :app:testDebugUnitTest :app:assembleDebug

@@ -1,6 +1,5 @@
 package com.willdeep.android.mobile
 
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -19,12 +18,17 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 class MobileGatewayClient(
-    private val httpClient: OkHttpClient = OkHttpClient.Builder()
+    httpClient: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(5, TimeUnit.SECONDS)
         .readTimeout(0, TimeUnit.SECONDS)
         .pingInterval(5, TimeUnit.SECONDS)
         .build(),
 ) {
+    // Do not forward pairing payloads or bearer credentials through redirects.
+    private val httpClient = httpClient.newBuilder()
+        .followRedirects(false)
+        .followSslRedirects(false)
+        .build()
     private var webSocket: WebSocket? = null
 
     suspend fun checkHealth(baseUrl: String): GatewayHealth {
@@ -82,12 +86,11 @@ class MobileGatewayClient(
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
-                runCatching { Log.d("GatewayWs", "recv: " + text.take(2000)) }
                 runCatching { parseGatewayEvent(text) }
                     .onSuccess { trySend(it) }
                     .onFailure {
-                        runCatching { Log.e("GatewayWs", "parse failed: ${it.message}", it) }
-                        trySend(GatewayEvent.Error(null, it.message ?: "Invalid gateway event"))
+                        // Parser exceptions can contain the input document; never log or echo them.
+                        trySend(GatewayEvent.Error(null, "Invalid gateway event"))
                     }
             }
 
@@ -145,14 +148,14 @@ private fun parseGatewayHealth(
 private fun Response.requireBody(): String {
     val text = body?.string().orEmpty()
     if (!isSuccessful) {
-        val message = runCatching { JSONObject(text).optString("error") }.getOrNull()
-        throw IOException(message?.ifBlank { "HTTP $code" } ?: "HTTP $code")
+        // Remote error bodies may echo submitted tokens. Keep only the status code.
+        throw IOException("HTTP $code")
     }
     return text
 }
 
 private fun String.endpoint(path: String): String {
-    return trimEnd('/') + "/" + path.trimStart('/')
+    return GatewayTransportPolicy.requireSecureBaseUrl(this).toString().trimEnd('/') + "/" + path.trimStart('/')
 }
 
 private fun String.wsEndpoint(path: String): String {

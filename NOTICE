@@ -1,0 +1,11 @@
+WillDeep Android
+Copyright 2026 WillDeep contributors
+Official website: https://willdeep.com
+
+The platform icons in app/src/main/res/drawable/ic_platform_{windows,linux,macos}.xml
+are adapted from Font Awesome Free brand SVGs by Fonticons, Inc.
+https://fontawesome.com
+Licensed under CC BY 4.0: https://creativecommons.org/licenses/by/4.0/
+Changes: converted the windows, linux and apple SVGs to Android VectorDrawable.
+
+Third-party libraries retain their respective licenses and notices.

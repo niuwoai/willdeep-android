@@ -14,7 +14,7 @@ object MobileRemotePushHandler {
 
     fun handleUmengPayload(context: Context, payload: String): Boolean {
         val attention = runCatching { RemoteAttentionPush.parse(payload) }
-            .onFailure { error -> Log.w(TAG, "Invalid remote push payload: ${error.message}") }
+            .onFailure { Log.w(TAG, "Invalid remote push payload") }
             .getOrNull() ?: return false
 
         val notifier = MobileAttentionNotifier(context.applicationContext)
