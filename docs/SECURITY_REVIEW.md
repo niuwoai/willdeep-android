@@ -53,4 +53,4 @@ gitleaks git . --staged --redact=100
 
 ## 本版验收结果
 
-Android Release：128 项中 126 通过、2 项既有示例跳过，lint 0 错误、104 项警告。正式签名真机策略测试 1 项通过，手机 APK 摘要与待发布产物一致，应用数据未清除。Mac 原生路由 29 项、网关认证 6 项及 Rust 手机网关 26 项回归全部通过。详见 [机器可读验收记录](verification/1.26.0-rc5/verification.json)。
+Android Release：128 项中 126 通过、2 项可选真实宿主能力 fixture 测试因未提供 fixture 跳过，lint 0 错误、104 项警告。正式签名真机策略测试 1 项通过，手机 APK 摘要与待发布产物一致，应用数据未清除。Mac 原生路由 29 项、网关认证 6 项及 Rust 手机网关 26 项回归全部通过。详见 [机器可读验收记录](verification/1.26.0-rc5/verification.json)。

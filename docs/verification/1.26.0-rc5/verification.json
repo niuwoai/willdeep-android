@@ -56,6 +56,10 @@
   "limitations": [
     "Rule based scan does not prove no unknown-format secret exists",
     "Relay service production authorization not penetration tested; no application-layer E2EE",
-    "128 Release tests include 2 existing skipped examples; lint has 104 existing warnings"
+    "128 Release tests include 2 optional real-host capability fixture tests skipped because fixtures were not supplied; lint has 104 existing warnings"
+  ],
+  "skipped_tests": [
+    "parsesActualRustCapabilityEnvelopeWhenIntegrationFixtureIsProvided",
+    "parsesActualMacCapabilityEnvelopeWhenIntegrationFixtureIsProvided"
   ]
 }
