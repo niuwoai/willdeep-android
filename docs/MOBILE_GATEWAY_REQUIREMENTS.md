@@ -235,7 +235,14 @@ Gateway events parsed by Android v1.17.0-rc52:
 
 `patch.upsert` without a status or with a pending status refreshes the patch card; completed statuses remove the matching patch card and cached diff.
 
-`state.snapshot` may include `queued_messages` with `id`, `text_preview`, `image_count`, `text_attachment_count`, and `session_id`.
+`state.snapshot` may include `queued_messages` with `id`, `text_preview`, `image_count`, `text_attachment_count`, and `session_id`. Updated hosts also return complete editable `text`; optional `can_edit: false` disables unsafe legacy edits. Android never edits a truncated preview.
+
+Queue protocol (Rust 0.115.0-rc3 / Mac 1.423.0-rc4 / Android 1.26.0-rc8):
+- `queue.update` uses the owning `session_id`. Actions: `add`, `edit`, `remove`, `clear`, `send_now`.
+- `edit` sends `message_id`, the new `text`, and snapshot `expected_text`. The host rejects stale, missing, cross-session, or already-started messages; ID, order, source and attachments are preserved.
+- `remove` / `send_now` use `message_id`; `clear` affects only pending user messages in the owning session. Active tasks and internal instructions are excluded.
+- `send_now` promotes the selected message, cancels the previous active turn and waits for its cancellation before the ordinary serial dispatcher consumes the queue.
+- Commands return `ack` / `error`; Android retains edit drafts on rejection or disconnection and refreshes the authoritative snapshot after success.
 `state.snapshot` may include `messages` with `id`, `role`, `content`, `created_at`, and `session_id`.
 `state.snapshot` may include `worktree_changes` with `repository_root`, `file_count`, `total_added_lines`, `total_deleted_lines`, `files`, and `session_id`.
 `state.snapshot` may include `pending_tools` and `patch_proposals`; Android restores those into the approval panel immediately after connecting and keeps only current `ask_user` answer drafts.
@@ -262,7 +269,7 @@ willdeep-rs hosts its relay in one of two places, depending on version:
 | `message.send` | `ack` | `ack` + `message.append` user echo + `state.snapshot`; text and images; run context is validated and applied before submission; unsupported experts are explicitly rejected | `ack` (text only; images/model overrides ignored) | — |
 | `turn.stop` | `ack` | `ack` | unsupported | command marked failed |
 | `tool.decide` | `ack` | `ack` + `tool.updated`; approvals resolve as allow once / deny only (never always-allow); `ask_user` needs a non-empty `answer` to approve | unsupported | command marked failed |
-| `queue.update` | `ack` | `action: add` → `ack` (queued as the session's next Runtime turn); `remove` / `clear` / `send_now` unsupported | unsupported | command marked failed |
+| `queue.update` | `ack`; edit requires updated host | 0.115.0-rc3 supports add/edit/remove/clear/send_now; legacy hosts only add | unsupported | command marked failed |
 | `patch.decide`, `diff.get`, `job.kill`, `file.read` | `ack` | unsupported | unsupported | command marked failed |
 
 Events willdeep-rs 0.82.0-rc1+ pushes while a phone is active (a phone command within the last 60 seconds; the five-second `session.list` heartbeat keeps it active):
@@ -275,7 +282,7 @@ Events willdeep-rs 0.82.0-rc1+ pushes while a phone is active (a phone command w
 
 Other notes on willdeep-rs:
 
-- Snapshots send `patch_proposals`, `jobs`, `queued_messages` and `worktree_changes` as empty arrays, because willdeep-rs has no such objects.
+- Snapshots send `patch_proposals`, `jobs` and `worktree_changes` as empty arrays. Rust 0.115.0-rc2 returns its persistent, unclaimed user turns in `queued_messages` across sessions; older hosts return an empty queue.
 - Approvals never set `requires_confirmation`.
 - Errors use `error` rather than `command.error`, with `payload.type` set to the originating command.
 

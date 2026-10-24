@@ -1,4 +1,12 @@
 <resources>
+    <string name="queue_edit_timeout">电脑尚未确认修改。草稿已保留；请刷新队列后重试。</string>
+    <string name="queue_edit_button">编辑</string>
+    <string name="queue_edit_title">编辑待发消息</string>
+    <string name="queue_edit_text">消息内容</string>
+    <string name="queue_edit_save">保存</string>
+    <string name="queue_edit_saving">保存中…</string>
+    <string name="queue_edit_cancel">取消</string>
+    <string name="queue_edit_preserves_attachments">保留已有附件；电脑确认后修改才会生效。</string>
     <string name="app_name">WillDeep</string>
     <string name="screen_title">WillDeep Mobile</string>
     <string name="screen_subtitle">连接同一局域网内的 Mac，并发送智能体任务。</string>

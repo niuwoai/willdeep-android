@@ -87,6 +87,10 @@ fun WillDeepApp(
     val lifecycleOwner = LocalLifecycleOwner.current
     var screen by rememberSaveable { mutableStateOf("home") }
 
+    LaunchedEffect(state.createdSessionId) {
+        if (state.createdSessionId != null) screen = "session"
+    }
+
     LaunchedEffect(sharedMessageVersion) {
         viewModel.importSharedMessage(sharedMessageText)
         if (sharedMessageVersion > 0 && sharedMessageText.isNotBlank()) {
@@ -171,9 +175,7 @@ fun WillDeepApp(
             onWorkspacePickerDismiss = viewModel::closeWorkspacePicker,
             onWorkspacePickerRetry = viewModel::requestWorkspaces,
             onWorkspaceSelected = { path ->
-                if (viewModel.createSession(path)) {
-                    screen = "session"
-                }
+                viewModel.createSession(path)
             },
             onOpenAttention = { screen = "attention" },
             onOpenDiagnostics = { screen = "diagnostics" },
@@ -297,6 +299,7 @@ internal fun ConversationCard(state: MobileGatewayUiState) {
 }
 
 internal fun GatewayMessage.hasDisplayableBody(): Boolean {
+    if (role.lowercase() in setOf("system", "developer", "tool")) return false
     return content.isNotBlank() || imageUrls.isNotEmpty() || rawContentPreview.isNotBlank()
 }
 
@@ -977,6 +980,7 @@ internal fun QueueCard(
     onSendNow: (GatewayQueuedMessage) -> Unit,
     onRemove: (GatewayQueuedMessage) -> Unit,
     onClear: () -> Unit,
+    onEdit: ((GatewayQueuedMessage) -> Unit)? = null,
 ) {
     if (state.queuedMessages.isEmpty()) {
         return
@@ -1002,6 +1006,7 @@ internal fun QueueCard(
                     connected = state.status == ConnectionStatus.Connected,
                     onSendNow = { onSendNow(message) },
                     onRemove = { onRemove(message) },
+                    onEdit = onEdit?.takeIf { message.text != null && message.sessionId != null }?.let { { it(message) } },
                 )
             }
         }
@@ -1014,6 +1019,7 @@ private fun QueuedMessageRow(
     connected: Boolean,
     onSendNow: () -> Unit,
     onRemove: () -> Unit,
+    onEdit: (() -> Unit)? = null,
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
@@ -1045,6 +1051,11 @@ private fun QueuedMessageRow(
                 }
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (onEdit != null) {
+                    OutlinedButton(onClick = onEdit, enabled = connected) {
+                        Text(stringResource(R.string.queue_edit_button))
+                    }
+                }
                 Button(onClick = onSendNow, enabled = connected) {
                     Text(stringResource(R.string.send_now_button))
                 }

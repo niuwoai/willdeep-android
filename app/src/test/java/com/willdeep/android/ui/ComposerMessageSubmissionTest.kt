@@ -25,4 +25,19 @@ class ComposerMessageSubmissionTest {
         assertEquals("current", envelope.sessionId)
         assertEquals(false, envelope.payload.has("action"))
     }
+
+    @Test
+    fun selectedSessionWinsOverLeftoverWorkspacePath() {
+        val envelope = composerMessageSubmission("new-session", "/chosen", false,
+            JSONObject().put("text", "hello").put("workspace_path", "/chosen"))
+        assertEquals("new-session", envelope.sessionId)
+        assertEquals(false, envelope.payload.has("workspace_path"))
+    }
+
+    @Test
+    fun submissionWithoutSessionKeepsChosenWorkspace() {
+        val envelope = composerMessageSubmission(null, "/chosen", false, JSONObject().put("text", "hello"))
+        assertEquals(null, envelope.sessionId)
+        assertEquals("/chosen", envelope.payload.getString("workspace_path"))
+    }
 }

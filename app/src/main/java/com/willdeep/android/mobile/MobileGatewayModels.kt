@@ -327,6 +327,7 @@ data class GatewayQueuedMessage(
     val imageCount: Int,
     val textAttachmentCount: Int,
     val sessionId: String?,
+    val text: String? = null,
 )
 
 enum class GatewayMessageActivity {
@@ -428,7 +429,7 @@ sealed interface GatewayEvent {
         val worktrees: List<GatewayWorktree>,
     ) : GatewayEvent
 
-    data class SessionUpsert(val session: GatewaySession) : GatewayEvent
+    data class SessionUpsert(val session: GatewaySession, val commandId: String? = null) : GatewayEvent
     data class Ack(val commandId: String?, val commandType: String, val sessionId: String?) : GatewayEvent
     data class Error(val commandId: String?, val message: String) : GatewayEvent
     data class MessageAppend(val message: GatewayMessage) : GatewayEvent
@@ -485,7 +486,7 @@ fun parseGatewayEvent(raw: String): GatewayEvent {
             messages = payload.optJSONArray("messages").toMessages(),
             worktrees = payload.optJSONArray("worktree_changes").toWorktrees(),
         )
-        "session.upsert" -> GatewayEvent.SessionUpsert(payload.getJSONObject("session").toSession())
+        "session.upsert" -> GatewayEvent.SessionUpsert(payload.getJSONObject("session").toSession(), id)
         "ack" -> payload.toAckEvent(id, sessionId)
         "error", "command.error" -> GatewayEvent.Error(id, payload.optString("message", "Unknown gateway error"))
         "message.append" -> GatewayEvent.MessageAppend(payload.toMessage(sessionId))
@@ -680,6 +681,7 @@ private fun JSONObject.toQueuedMessage(sessionId: String?): GatewayQueuedMessage
     return GatewayQueuedMessage(
         id = firstString("id", "message_id", "queued_id"),
         textPreview = firstString("text_preview", "preview", "text"),
+        text = if (has("text") && !isNull("text") && optBoolean("can_edit", true)) optString("text") else null,
         imageCount = optInt("image_count", 0),
         textAttachmentCount = optInt("text_attachment_count", 0),
         sessionId = firstString("session_id").ifBlank { sessionId },

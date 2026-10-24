@@ -1,6 +1,11 @@
 # Product Overview
 
-> Last updated: 2026-10-21 | Current version: v1.26.0-rc5
+> Last updated: 2026-10-24 | Current version: v1.26.0-rc8
+
+- 会话创建等待远端匹配回执后跳转，后续发送固定到新会话；隐藏内部系统消息。
+- Android 支持队列完整正文编辑、立即发送、删除与清空；Mac / Rust 网关使用一致的队列消息 ID、正文与旧文本冲突检测。编辑保留已有附件，保存等待宿主确认，失败或断线保留草稿；旧宿主缺少完整正文时不允许编辑截断预览。
+
+队列协议、复跑命令与验收边界：[三端待发队列验证](docs/MOBILE_QUEUE_VERIFICATION.md)。
 
 Official website: [willdeep.com](https://willdeep.com) · [README](README.md) · [Apache-2.0](LICENSE)
 

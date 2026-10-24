@@ -9,6 +9,9 @@ internal fun composerMessageSubmission(
     isResponding: Boolean,
     payload: JSONObject,
 ): GatewayEnvelope {
+    // An explicit session always owns the message; workspace is only for a new conversation.
+    if (sessionId != null) payload.remove("workspace_path")
+    else workspacePath?.let { payload.put("workspace_path", it) }
     if (isResponding && sessionId != null) {
         return GatewayEnvelope(
             type = "queue.update",
@@ -18,7 +21,7 @@ internal fun composerMessageSubmission(
     }
     return GatewayEnvelope(
         type = "message.send",
-        sessionId = sessionId.takeIf { workspacePath == null },
+        sessionId = sessionId,
         payload = payload,
     )
 }

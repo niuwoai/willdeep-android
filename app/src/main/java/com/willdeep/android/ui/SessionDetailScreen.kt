@@ -104,6 +104,13 @@ fun SessionDetailScreen(
         worktree = state.worktree?.takeIf { it.sessionId == null || it.sessionId == sessionId },
     )
     val isResponding = activeSession?.isResponding == true
+    state.queueEdit?.let { edit ->
+        QueueEditDialog(
+            edit = edit, connected = state.status == ConnectionStatus.Connected,
+            onChange = viewModel::updateQueueEditText, onSave = viewModel::saveQueueEdit,
+            onDismiss = viewModel::dismissQueueEdit,
+        )
+    }
     var selectedTab by remember { mutableStateOf(SessionDetailTab.Conversation) }
     val listState = rememberLazyListState()
     val conversationMessages = scopedState.conversationMessages.filter { it.hasDisplayableBody() }
@@ -199,6 +206,7 @@ fun SessionDetailScreen(
                 onToolConfirmationChange = viewModel::updateToolConfirmation,
                 onPatchDecision = viewModel::decidePatch,
                 onSendQueuedNow = viewModel::sendQueuedNow,
+                onEditQueued = viewModel::beginQueueEdit,
                 onRemoveQueued = viewModel::removeQueuedMessage,
                 onClearQueue = viewModel::clearQueue,
                 )
@@ -270,6 +278,7 @@ fun SessionDetailScreen(
                                 onSendNow = viewModel::sendQueuedNow,
                                 onRemove = viewModel::removeQueuedMessage,
                                 onClear = viewModel::clearQueue,
+                                onEdit = viewModel::beginQueueEdit,
                             )
                         }
                     }
@@ -403,6 +412,7 @@ private fun MessageInputBar(
     onSendQueuedNow: (com.willdeep.android.mobile.GatewayQueuedMessage) -> Unit,
     onRemoveQueued: (com.willdeep.android.mobile.GatewayQueuedMessage) -> Unit,
     onClearQueue: () -> Unit,
+    onEditQueued: ((com.willdeep.android.mobile.GatewayQueuedMessage) -> Unit)? = null,
 ) {
     val pickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(maxItems = 6)
@@ -568,6 +578,7 @@ private fun MessageInputBar(
                 onToolConfirmationChange = onToolConfirmationChange,
                 onPatchDecision = onPatchDecision,
                 onSendQueuedNow = onSendQueuedNow,
+                onEditQueued = onEditQueued,
                 onRemoveQueued = onRemoveQueued,
                 onClearQueue = onClearQueue,
             )
@@ -930,6 +941,7 @@ private fun ComposerReviewDock(
     onSendQueuedNow: (com.willdeep.android.mobile.GatewayQueuedMessage) -> Unit,
     onRemoveQueued: (com.willdeep.android.mobile.GatewayQueuedMessage) -> Unit,
     onClearQueue: () -> Unit,
+    onEditQueued: ((com.willdeep.android.mobile.GatewayQueuedMessage) -> Unit)? = null,
 ) {
     val hasApprovals = state.pendingTools.isNotEmpty() || state.patchProposals.isNotEmpty()
     val hasQueue = state.queuedMessages.isNotEmpty()
@@ -974,6 +986,7 @@ private fun ComposerReviewDock(
                 onSendNow = onSendQueuedNow,
                 onRemove = onRemoveQueued,
                 onClear = onClearQueue,
+                onEdit = onEditQueued,
             )
         }
     }

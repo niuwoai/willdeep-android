@@ -1,4 +1,12 @@
 <resources>
+    <string name="queue_edit_timeout">The computer has not confirmed the edit. Your draft is kept; refresh the queue before retrying.</string>
+    <string name="queue_edit_button">Edit</string>
+    <string name="queue_edit_title">Edit queued message</string>
+    <string name="queue_edit_text">Message</string>
+    <string name="queue_edit_save">Save</string>
+    <string name="queue_edit_saving">Saving…</string>
+    <string name="queue_edit_cancel">Cancel</string>
+    <string name="queue_edit_preserves_attachments">Existing attachments are kept. Changes take effect after the computer confirms.</string>
     <string name="app_name">WillDeep</string>
     <string name="screen_title">WillDeep Mobile</string>
     <string name="screen_subtitle">Connect to the Mac on your local network and send Agent tasks.</string>

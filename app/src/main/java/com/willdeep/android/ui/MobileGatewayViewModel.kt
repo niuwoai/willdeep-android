@@ -149,6 +149,7 @@ data class MobileGatewayUiState(
     val patchDiffs: Map<String, PatchDiff> = emptyMap(),
     val jobs: List<GatewayJob> = emptyList(),
     val queuedMessages: List<GatewayQueuedMessage> = emptyList(),
+    val queueEdit: QueueEditState? = null,
     val conversationMessages: List<GatewayMessage> = emptyList(),
     val worktree: GatewayWorktree? = null,
     val commandStatuses: List<MobileCommandStatus> = emptyList(),
@@ -162,6 +163,8 @@ data class MobileGatewayUiState(
     val modelsStatus: String? = null,
     val isReadOnlyWorkspace: Boolean = false,
     val pendingSessionSelectionId: String? = null,
+    val pendingSessionCreateId: String? = null,
+    val createdSessionId: String? = null,
     val providerOptions: List<MobileCapabilityOption> = emptyList(),
     val modelOptions: List<MobileCapabilityOption> = emptyList(),
     val skillOptions: List<MobileCapabilityOption> = emptyList(),
@@ -820,6 +823,8 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
                 sessions = emptyList(),
                 selectedSessionId = null,
                 pendingSessionSelectionId = null,
+                pendingSessionCreateId = null,
+                createdSessionId = null,
                 workspaces = emptyList(),
                 pendingTools = emptyList(),
                 toolAnswers = emptyMap(),
@@ -828,6 +833,7 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
                 patchDiffs = emptyMap(),
                 jobs = emptyList(),
                 queuedMessages = emptyList(),
+                queueEdit = null,
                 conversationMessages = emptyList(),
                 worktree = null,
                 commandStatuses = emptyList(),
@@ -837,6 +843,7 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun createSession(workspacePath: String): Boolean {
+        if (state.value.pendingSessionCreateId != null) return false
         val path = workspacePath.trim()
         if (path.isEmpty()) {
             _state.update {
@@ -849,13 +856,12 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
             return false
         }
         val payload = JSONObject().put("workspace_path", path)
-        val sent = send(
-            GatewayEnvelope(
-                type = "session.create",
-                payload = payload,
-            )
-        )
-        if (!sent) return false
+        val envelope = GatewayEnvelope(type = "session.create", payload = payload)
+        _state.update { it.copy(pendingSessionCreateId = envelope.id, createdSessionId = null) }
+        if (!send(envelope)) {
+            _state.update { it.copy(pendingSessionCreateId = null) }
+            return false
+        }
         _state.update {
             it.copy(
                 preferredWorkspacePath = path,
@@ -869,7 +875,7 @@ class MobileGatewayViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun selectSession(sessionId: String) {
-        _state.update { it.clearCapabilities().copy(selectedSessionId = sessionId, pendingSessionSelectionId = sessionId) }
+        _state.update { it.clearCapabilities().copy(selectedSessionId = sessionId, pendingSessionSelectionId = sessionId, preferredWorkspacePath = "") }
         send(GatewayEnvelope(type = "session.select", sessionId = sessionId))
         requestCapabilities()
     }
@@ -1068,12 +1074,41 @@ private fun configureSession(payload: JSONObject) {
         updateQueue(message, "send_now", R.string.queue_send_now_log)
     }
 
-    fun removeQueuedMessage(message: GatewayQueuedMessage) {
-        val sent = updateQueue(message, "remove", R.string.queue_remove_log)
-        if (!sent) return
-        _state.update {
-            it.copy(queuedMessages = it.queuedMessages.filterNot { queued -> queued.id == message.id })
+    fun beginQueueEdit(message: GatewayQueuedMessage) {
+        val text = message.text ?: return
+        if (message.sessionId == null) return
+        _state.update { it.copy(queueEdit = QueueEditState(message, text)) }
+    }
+
+    fun updateQueueEditText(text: String) {
+        _state.update { it.copy(queueEdit = it.queueEdit?.takeIf { edit -> edit.commandId == null }?.copy(text = text, error = null) ?: it.queueEdit) }
+    }
+
+    fun dismissQueueEdit() {
+        _state.update { if (it.queueEdit?.commandId == null) it.copy(queueEdit = null) else it }
+    }
+
+    fun saveQueueEdit() {
+        val envelope = state.value.queueEdit?.submission() ?: return
+        _state.update { it.copy(queueEdit = it.queueEdit?.copy(commandId = envelope.id, error = null)) }
+        if (!send(envelope)) {
+            _state.update { it.copy(queueEdit = it.queueEdit?.copy(commandId = null, error = it.errorMessage)) }
+            return
         }
+        viewModelScope.launch {
+            delay(QUEUE_EDIT_ACK_TIMEOUT_MILLIS)
+            val error = getApplication<Application>().getString(R.string.queue_edit_timeout)
+            _state.update {
+                if (it.queueEdit?.commandId == envelope.id) {
+                    it.copy(queueEdit = it.queueEdit.afterReply(envelope.id, error),
+                        commandStatuses = it.commandStatuses.markCommandFailed(envelope.id, error))
+                } else it
+            }
+        }
+    }
+
+    fun removeQueuedMessage(message: GatewayQueuedMessage) {
+        updateQueue(message, "remove", R.string.queue_remove_log)
     }
 
     fun clearQueue() {
@@ -1087,7 +1122,6 @@ private fun configureSession(payload: JSONObject) {
         if (!sent) return
         _state.update {
             it.copy(
-                queuedMessages = emptyList(),
                 logLines = it.logLines.append(
                     GatewayLogLine(
                         "mobile",
@@ -1390,6 +1424,12 @@ private fun configureSession(payload: JSONObject) {
 
     private fun handleGatewayEvent(event: GatewayEvent) {
         if (event.isDesktopHeartbeatEvent()) noteDesktopEventReceived()
+        if (event is GatewayEvent.ConnectionClosed || event is GatewayEvent.ConnectionFailed || event == GatewayEvent.Disconnected) {
+            _state.update {
+                it.copy(queueEdit = it.queueEdit?.copy(commandId = null,
+                    error = getApplication<Application>().getString(R.string.error_websocket_not_connected)))
+            }
+        }
 
         when (event) {
             GatewayEvent.Connected -> {
@@ -1399,6 +1439,8 @@ private fun configureSession(payload: JSONObject) {
                     it.clearCapabilities().copy(
                         status = ConnectionStatus.AwaitingDesktop,
                         pendingSessionSelectionId = null,
+                        pendingSessionCreateId = null,
+                        createdSessionId = null,
                         isTransportConnected = true,
                         desktopResponseAgeMillis = 0L,
                         errorMessage = null,
@@ -1498,9 +1540,8 @@ private fun configureSession(payload: JSONObject) {
                 _state.update {
                     val sessions = (it.sessions.filterNot { session -> session.id == event.session.id } + event.session)
                         .sortedByDescending { session -> session.isActive }
-                    it.copy(
+                    it.applyCreatedSession(event).copy(
                         sessions = sessions,
-                        selectedSessionId = if (event.session.isActive || it.selectedSessionId == null) event.session.id else it.selectedSessionId,
                         status = ConnectionStatus.Connected,
                     )
                 }
@@ -1508,12 +1549,17 @@ private fun configureSession(payload: JSONObject) {
                     _state.update { it.clearCapabilities() }
                     requestCapabilities()
                 }
+                if (state.value.createdSessionId == event.session.id && event.commandId != null) {
+                    selectSession(event.session.id)
+                }
             }
             is GatewayEvent.Ack -> {
                 _state.update {
                     it.copy(
-                        selectedSessionId = if (event.commandType == "session.configure" ||
-                            (event.commandType == "session.select" && it.pendingSessionSelectionId != null && event.sessionId != it.pendingSessionSelectionId)
+                        queueEdit = it.queueEdit.afterReply(event.commandId),
+                        selectedSessionId = if (event.commandType !in setOf("session.select", "message.send") ||
+                            it.pendingSessionCreateId != null ||
+                            (it.pendingSessionSelectionId != null && event.sessionId != it.pendingSessionSelectionId)
                         ) it.selectedSessionId else event.sessionId ?: it.selectedSessionId,
                         pendingSessionSelectionId = if (event.commandType == "session.select" && event.sessionId == it.pendingSessionSelectionId) null else it.pendingSessionSelectionId,
                         commandStatuses = it.commandStatuses.markCommandAccepted(
@@ -1524,9 +1570,20 @@ private fun configureSession(payload: JSONObject) {
                     )
                 }
                 if (event.commandType == "session.configure" || event.commandType == "session.select") requestCapabilities()
+                if (event.commandType in setOf("queue.update", "session.select")) send(GatewayEnvelope(type = "session.list"))
             }
             is GatewayEvent.Error -> {
                 val failedType = state.value.commandStatuses.firstOrNull { it.id == event.commandId }?.type
+                if (failedType == "queue.update" || (event.commandId != null && event.commandId == state.value.queueEdit?.commandId)) {
+                    _state.update { it.queueCommandFailed(event.commandId, event.message) }
+                    send(GatewayEnvelope(type = "session.list"))
+                    return
+                }
+                _state.update {
+                    if (event.commandId != null && event.commandId == it.pendingSessionCreateId) {
+                        it.copy(pendingSessionCreateId = null, workspacePickerVisible = true, workspacePickerError = event.message)
+                    } else it
+                }
                 if (failedType == "session.configure") {
                     _state.update { it.copy(errorMessage = event.message, commandStatuses = it.commandStatuses.markCommandFailed(event.commandId, event.message)) }
                     requestCapabilities()
